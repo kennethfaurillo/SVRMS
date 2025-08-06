@@ -1,4 +1,4 @@
-import { DEPARTMENTS, SERVICE_VEHICLES } from "../constants";
+import { DEPARTMENTS, REQUEST_STATUSES, SERVICE_VEHICLES } from "../constants";
 import { useAuth } from "../contexts/AuthContext";
 import type { Request } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
@@ -14,6 +14,7 @@ interface RequestsTableProps {
     handleUpdateClick: (request: Request) => void;
     handleDeleteClick: (request: Request) => void;
     handleExportClick: () => void;
+    handleApproveClick: (request: Request) => void;
 }
 
 export default function RequestsTable({
@@ -26,7 +27,8 @@ export default function RequestsTable({
     cancelEditing,
     handleUpdateClick,
     handleDeleteClick,
-    handleExportClick
+    handleExportClick,
+    handleApproveClick
 }: RequestsTableProps) {
     const { isAdmin } = useAuth();
     return (
@@ -205,21 +207,18 @@ export default function RequestsTable({
                                         )}
                                     </td>
                                     {/* Status */}
-                                    <td className={`px-3 py-1.5 text-sm font-semibold border border-gray-200 ${request.status === 'Pending' ? 'text-red-500' : 'text-green-500'}`}>
+                                    <td className={`px-3 py-1.5 text-sm font-semibold border border-gray-200 ${request.status === 'Pending' ? 'text-red-500' : request.status === 'Approved' ? 'text-green-500' : request.status === 'Rescheduled' ? 'text-yellow-500' : 'text-gray-500'}`}>
                                         {editingRequestId === request.id ? (
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    name="status"
-                                                    id="status"
-                                                    checked={currentEditData?.status === 'Approved'}
-                                                    onChange={handleEditChange}
-                                                    className={`h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${darkMode ? 'bg-gray-600 border-gray-500' : ''}`}
-                                                />
-                                                <label for={"status"} className={`ml-2 block text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'} cursor-pointer`}>
-                                                    {currentEditData?.status}
-                                                </label>
-                                            </div>
+                                            <select
+                                                name="status"
+                                                value={currentEditData?.status || ''}
+                                                onChange={handleEditChange}
+                                                className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                            >
+                                                {REQUEST_STATUSES.map((status) => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
                                         ) : (
                                             request.status
                                         )}
@@ -261,13 +260,13 @@ export default function RequestsTable({
                                                 <div className="flex space-x-1">
                                                     <button
                                                         onClick={() => saveEditedRequest(request.id)}
-                                                        className="px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 transition duration-150 ease-in-out"
+                                                        className="px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 transition duration-150 ease-in-out cursor-pointer"
                                                     >
                                                         Save
                                                     </button>
                                                     <button
                                                         onClick={cancelEditing}
-                                                        className="px-3 py-1 bg-gray-500 text-white rounded-md text-xs hover:bg-gray-600 transition duration-150 ease-in-out"
+                                                        className="px-3 py-1 bg-gray-500 text-white rounded-md text-xs hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer"
                                                     >
                                                         Cancel
                                                     </button>
@@ -286,6 +285,19 @@ export default function RequestsTable({
                                                         }
                                                     >
                                                         Update
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleApproveClick(request)}
+                                                        disabled={!isAdmin || request.status !== 'Pending'}
+                                                        className={`px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && request.status === 'Pending'
+                                                                ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                : 'bg-green-300 text-gray-200 cursor-not-allowed'
+                                                            }`
+                                                        }
+                                                        title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
+                                                    >
+                                                        Approve
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteClick(request)}

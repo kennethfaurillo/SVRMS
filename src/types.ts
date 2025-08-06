@@ -1,5 +1,5 @@
 import type { DocumentData, DocumentReference, Timestamp } from "firebase/firestore";
-import type { DEPARTMENTS, REQUEST_STATUSES, SERVICE_VEHICLES } from "./constants";
+import type { DEPARTMENTS, REQUEST_STATUSES, SERVICE_VEHICLES, TRIP_STATUSES } from "./constants";
 
 export type Result = {
   ok: false;
@@ -23,13 +23,22 @@ export type Request = {
   status: SVRStatus;
   remarks?: string; // Optional remarks by requester
   completedDate?: string | null; // Optional, can be null if not completed
+  tripId?: string;
   // Admin Only Fields
   issueFaced?: string;
   actionTaken?: string;
 }
+export type Trip = {
+  id: string; // Firebase auto-generated ID
+  tripCode: string; // User-defined trip code (e.g., "250806-0001")
+  requests: Request[];
+  completedDate: Timestamp | null;
+  status: TripStatus;
+}
 export type Department = typeof DEPARTMENTS[number];
 export type ServiceVehicle = typeof SERVICE_VEHICLES[number];
 export type SVRStatus = typeof REQUEST_STATUSES[number];
+export type TripStatus = typeof TRIP_STATUSES[number];
 
 export type Notification = {
   id: string, 

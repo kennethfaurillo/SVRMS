@@ -7,9 +7,10 @@ import { Timestamp } from "firebase/firestore";
 interface RequestFormProps {
     darkMode: boolean
     onSubmit: (requestData: Request) => Promise<void>;
+    onToggle?: () => void;
 }
 
-export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
+export default function RequestForm({ darkMode, onSubmit, onToggle }: RequestFormProps) {
     const [requestedVehicle, setRequestedVehicle] = useState<ServiceVehicle | ''>('');
     const [purpose, setPurpose] = useState('');
     const [destination, setDestination] = useState('');
@@ -45,7 +46,21 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
 
     return (
         <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-6 rounded-lg shadow-inner`}>
-            <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>Record New Request</h2>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>Record New Request</h2>
+                {onToggle && (
+                    <button
+                        onClick={onToggle}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'} cursor-pointer`}
+                        title="Hide Request Form"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Hide Form
+                    </button>
+                )}
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Two-column grid for main fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

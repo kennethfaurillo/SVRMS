@@ -1,13 +1,16 @@
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+import ApproveModal from './components/ApproveModal';
 import Loader from './components/Loader';
 import LoginModal from './components/LoginModal';
 import RequestForm from './components/RequestForm';
 import RequestsTable from './components/RequestsTable';
+import TripsTable from './components/TripsTable';
 import { useAuth } from './contexts/AuthContext';
 import { firebaseFirestore } from './firebase';
 import useRequests from './hooks/useRequests';
-import { type Notification, type Request } from './types';
+import useTrips from './hooks/useTrips';
+import { type Notification, type Request, type Trip } from './types';
 import { exportToCsv } from './utils';
 
 export function App() {
@@ -21,10 +24,18 @@ export function App() {
     return savedMode ? JSON.parse(savedMode) : false;
   });
   const { requests, addRequest } = useRequests();
+  const { trips } = useTrips();
   const { user, isAdmin, signOutUser } = useAuth();
 
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Toggle state for showing new request form
+  const [showRequestForm, setShowRequestForm] = useState(true);
+
+  // Approve modal state
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [requestToApprove, setRequestToApprove] = useState<Request | null>(null);
 
   // Notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -103,19 +114,16 @@ export function App() {
 
   // Handle changes in editable fields
   const handleEditChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setCurrentEditData(prevData => {
       const newData = { ...prevData };
-      if (name === 'status' && type === 'checkbox') {
-        newData[name] = checked ? 'Approved' : 'Pending';
-      } else if (name === 'driverRequest') { // Handle dropdown change for driverRequest
+      if (name === 'driverRequest') { // Handle dropdown change for driverRequest
         newData[name] = value;
         // If driverRequest changes to 'No', clear delegatedDriverName
         if (value === 'No') {
           newData.delegatedDriverName = undefined;
         }
-      }
-      else {
+      } else {
         newData[name] = value;
       }
 
@@ -175,6 +183,63 @@ export function App() {
     exportToCsv(requests);
   };
 
+  // Function to handle approve button click
+  const handleApproveClick = (request: Request) => {
+    setRequestToApprove(request);
+    setShowApproveModal(true);
+  };
+
+  // Function to handle trip approval and management
+  const handleApproveSubmit = async (tripId: string) => {
+    if (!requestToApprove || !db) {
+      setMessage("No request to approve or Firebase not initialized.");
+      return;
+    }
+
+    try {
+      // Update the request with approved status and tripId
+      await updateDoc(doc(db, `requests`, requestToApprove.id), {
+        status: 'Approved',
+        tripId: tripId
+      });
+      
+      // Check if trip already exists by querying tripCode
+      const tripsRef = collection(db, 'trips');
+      const tripQuery = query(tripsRef, where('tripCode', '==', tripId));
+      const tripSnapshot = await getDocs(tripQuery);
+
+      if (!tripSnapshot.empty) {
+        // Trip exists, append request reference to existing trip
+        const existingTripDoc = tripSnapshot.docs[0];
+        const existingTrip = existingTripDoc.data() as Trip;
+        const updatedRequests = [...existingTrip.requests, requestToApprove];
+        await updateDoc(doc(db, 'trips', existingTripDoc.id), {
+          requests: updatedRequests
+        });
+        setMessage(`Request approved and added to existing trip ${tripId}!`);
+      } else {
+        // Create new trip document
+        const newTrip: Trip = {
+          id: '', // This will be set by Firebase
+          tripCode: tripId,
+          requests: [requestToApprove],
+          completedDate: null,
+          status: 'Not Fulfilled'
+        };
+        await addDoc(collection(db, 'trips'), newTrip);
+        setMessage(`Request approved and new trip ${tripId} created!`);
+      }
+
+      addNotification('updated', `${requestToApprove.requesterName} Request approved for trip ${tripId}.`);
+      setRequestToApprove(null);
+    } catch (error) {
+      console.error("Error approving request:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error approving request: ${errorMessage}`);
+      addNotification('update attempt', `Failed to approve request "${requestToApprove.requestedVehicle}" by ${requestToApprove.requesterName}. Error: ${errorMessage}`);
+    }
+  };
+
   // Show loader if user is not authenticated
   if (!user) {
     return <Loader darkMode={darkMode} />;
@@ -182,7 +247,7 @@ export function App() {
 
   return (
     <div className={`min-h-screen p-4 font-sans flex flex-col items-center ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
-      <div className={`w-full max-w-7xl shadow-xl rounded-xl p-6 md:p-8 space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`w-full max-w-11/12 shadow-xl rounded-xl p-6 md:p-8 space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-4xl font-extrabold text-center flex-grow">
             Service Vehicle Request
@@ -288,10 +353,30 @@ export function App() {
           </div>
         )}
         {/* Request Submission Form */}
-        <RequestForm
-          darkMode={darkMode}
-          onSubmit={handleSubmitRequest}
-        />
+        {showRequestForm && (
+          <RequestForm
+            darkMode={darkMode}
+            onSubmit={handleSubmitRequest}
+            onToggle={() => setShowRequestForm(false)}
+          />
+        )}
+
+        {/* Show Form Button - displayed when form is hidden */}
+        {!showRequestForm && (
+          <div className="text-center mb-8">
+            <button
+              onClick={() => setShowRequestForm(true)}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'} cursor-pointer shadow-lg`}
+              title="Show Request Form"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Show Request Form
+            </button>
+          </div>
+        )}
+
         {/* Requests Table */}
         <RequestsTable
           requests={requests}
@@ -304,6 +389,13 @@ export function App() {
           handleUpdateClick={handleUpdateClick}
           handleDeleteClick={handleDeleteClick}
           handleExportClick={handleExportClick}
+          handleApproveClick={handleApproveClick}
+        />
+
+        {/* Trips Table */}
+        <TripsTable
+          trips={trips}
+          darkMode={darkMode}
         />
       </div>
       {/* Login Modal */}
@@ -311,6 +403,14 @@ export function App() {
         darkMode={darkMode}
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+      />
+      {/* Approve Modal */}
+      <ApproveModal
+        darkMode={darkMode}
+        isOpen={showApproveModal}
+        onClose={() => setShowApproveModal(false)}
+        onSubmit={handleApproveSubmit}
+        request={requestToApprove}
       />
     </div>
   );
