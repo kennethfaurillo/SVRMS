@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, DocumentReference, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import ApproveModal from './components/ApproveModal';
 import Loader from './components/Loader';
@@ -117,11 +117,12 @@ export function App() {
     const { name, value } = e.target;
     setCurrentEditData(prevData => {
       const newData = { ...prevData };
-      if (name === 'driverRequest') { // Handle dropdown change for driverRequest
-        newData[name] = value;
-        // If driverRequest changes to 'No', clear delegatedDriverName
+      if (name === 'isDriverRequested') { // Handle dropdown change for isDriverRequested
+        newData.isDriverRequested = value;
+        // If isDriverRequested changes to 'No', clear delegatedDriverName
         if (value === 'No') {
-          newData.delegatedDriverName = undefined;
+          console.log('clearing')
+          newData.delegatedDriverName = null;
         }
       } else {
         newData[name] = value;
@@ -190,47 +191,100 @@ export function App() {
   };
 
   // Function to handle trip approval and management
-  const handleApproveSubmit = async (tripId: string) => {
+  const handleApproveSubmit = async (tripCode: string, isNewTrip: boolean, tripData?: Partial<Trip>) => {
     if (!requestToApprove || !db) {
       setMessage("No request to approve or Firebase not initialized.");
       return;
     }
 
     try {
-      // Update the request with approved status and tripId
-      await updateDoc(doc(db, `requests`, requestToApprove.id), {
-        status: 'Approved',
-        tripId: tripId
-      });
-      
-      // Check if trip already exists by querying tripCode
-      const tripsRef = collection(db, 'trips');
-      const tripQuery = query(tripsRef, where('tripCode', '==', tripId));
-      const tripSnapshot = await getDocs(tripQuery);
+      const batch = writeBatch(db);
+      // Create a document reference for the request
+      const requestRef = doc(db, 'requests', requestToApprove.id);
 
-      if (!tripSnapshot.empty) {
-        // Trip exists, append request reference to existing trip
-        const existingTripDoc = tripSnapshot.docs[0];
-        const existingTrip = existingTripDoc.data() as Trip;
-        const updatedRequests = [...existingTrip.requests, requestToApprove];
-        await updateDoc(doc(db, 'trips', existingTripDoc.id), {
-          requests: updatedRequests
-        });
-        setMessage(`Request approved and added to existing trip ${tripId}!`);
-      } else {
-        // Create new trip document
+      if (isNewTrip) {
+        // Update the request with approved status
+        // await updateDoc(requestRef, {
+        //   status: 'Approved'
+        // });
+        batch.update(requestRef, {
+          status: 'Approved',
+          requestedDateTime: tripData?.dateTime || requestToApprove.requestedDateTime,
+          requestedVehicle: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
+          isDriverRequested: tripData?.driverName ? 'Yes' : 'No',
+          delegatedDriverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null)
+        })
+
+        // Create new trip document following the new schema
         const newTrip: Trip = {
           id: '', // This will be set by Firebase
-          tripCode: tripId,
-          requests: [requestToApprove],
-          completedDate: null,
+          tripCode,
+          dateTime: tripData?.dateTime || requestToApprove.requestedDateTime,
+          vehicleAssigned: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
+          driverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
+          personnel: [requestToApprove.requesterName],
+          purpose: [requestToApprove.purpose],
+          destination: requestToApprove.destination,
+          requests: [doc(db, 'requests', requestToApprove.id) as DocumentReference<Request>],
           status: 'Not Fulfilled'
         };
-        await addDoc(collection(db, 'trips'), newTrip);
-        setMessage(`Request approved and new trip ${tripId} created!`);
+        const newTripRef = doc(collection(db, 'trips'));
+        batch.set(newTripRef, newTrip);
+        await batch.commit();
+        // await addDoc(collection(db, 'trips'), newTrip);
+        setMessage(`Request approved and new trip ${tripCode} created!`);
+      } else {
+        // Find existing trip by tripCode and append request reference
+        const tripsRef = collection(db, 'trips');
+        const tripQuery = query(tripsRef, where('tripCode', '==', tripCode));
+        const tripSnapshot = await getDocs(tripQuery);
+
+        if (!tripSnapshot.empty) {
+          const existingTripDoc = tripSnapshot.docs[0];
+          const existingTrip = existingTripDoc.data() as Trip;
+
+          // Update the request to match the existing trip's datetime, vehicle, and driver
+          // but keep the request's own personnel, purpose, destination, and remarks
+          await updateDoc(requestRef, {
+            status: 'Approved',
+            requestedDateTime: existingTrip.dateTime,
+            requestedVehicle: existingTrip.vehicleAssigned,
+            isDriverRequested: existingTrip.driverName ? 'Yes' : 'No',
+            delegatedDriverName: existingTrip.driverName || null
+          });
+
+          const updatedRequests = [...existingTrip.requests, requestRef as any];
+
+          // Update personnel array (add if not already present)
+          const updatedPersonnel = [...(existingTrip.personnel || [])];
+          if (!updatedPersonnel.includes(requestToApprove.requesterName)) {
+            updatedPersonnel.push(requestToApprove.requesterName);
+          }
+
+          // Update purpose array (add if not already present)
+          const updatedPurpose = [...(existingTrip.purpose || [])];
+          if (!updatedPurpose.includes(requestToApprove.purpose)) {
+            updatedPurpose.push(requestToApprove.purpose);
+          }
+
+          // Update the trip with new request data
+          await updateDoc(doc(db, 'trips', existingTripDoc.id), {
+            requests: updatedRequests,
+            personnel: updatedPersonnel,
+            purpose: updatedPurpose,
+            // Keep the existing dateTime, vehicleAssigned, and driverName unless they're not set
+            dateTime: existingTrip.dateTime || requestToApprove.requestedDateTime,
+            vehicleAssigned: existingTrip.vehicleAssigned || requestToApprove.requestedVehicle,
+            driverName: existingTrip.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
+          });
+          setMessage(`Request approved and added to existing trip ${tripCode}!`);
+        } else {
+          setMessage(`Error: Trip ${tripCode} not found!`);
+          return;
+        }
       }
 
-      addNotification('updated', `${requestToApprove.requesterName} Request approved for trip ${tripId}.`);
+      addNotification('updated', `${requestToApprove.requesterName} Request approved for trip ${tripCode}.`);
       setRequestToApprove(null);
     } catch (error) {
       console.error("Error approving request:", error);
@@ -247,7 +301,7 @@ export function App() {
 
   return (
     <div className={`min-h-screen p-4 font-sans flex flex-col items-center ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
-      <div className={`w-full max-w-11/12 shadow-xl rounded-xl p-6 md:p-8 space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`w-full max-w-10/12 shadow-xl rounded-xl p-6 md:p-8 space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-4xl font-extrabold text-center flex-grow">
             Service Vehicle Request
@@ -407,10 +461,12 @@ export function App() {
       {/* Approve Modal */}
       <ApproveModal
         darkMode={darkMode}
+        key={requestToApprove?.id}
         isOpen={showApproveModal}
         onClose={() => setShowApproveModal(false)}
         onSubmit={handleApproveSubmit}
         request={requestToApprove}
+        existingTrips={trips}
       />
     </div>
   );

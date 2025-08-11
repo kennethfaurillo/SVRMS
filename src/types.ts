@@ -15,8 +15,8 @@ export type Request = {
   requestedVehicle: ServiceVehicle; // SV Request type
   requesterName: string;
   department: Department;
-  isDriverRequested: boolean;
-  delegatedDriverName?: string; // Optional, can be null if isDriverRequested is false
+  isDriverRequested: 'Yes' | 'No'; // Dropdown for driver request
+  delegatedDriverName?: string | null; // Optional, can be null if isDriverRequested is false
   purpose: string;
   destination: string;
   requestedDateTime: string; // Combined requested date and time in ISO format
@@ -31,8 +31,13 @@ export type Request = {
 export type Trip = {
   id: string; // Firebase auto-generated ID
   tripCode: string; // User-defined trip code (e.g., "250806-0001")
-  requests: Request[];
-  completedDate: Timestamp | null;
+  dateTime: string; // Date and time of the trip in ISO format
+  vehicleAssigned: ServiceVehicle; // Vehicle assigned for the trip
+  driverName?: string | null; // Optional, can be null if no driver assigned
+  personnel: string[];
+  purpose: string[];
+  destination: string;
+  requests: DocumentReference<Request>[];
   status: TripStatus;
 }
 export type Department = typeof DEPARTMENTS[number];

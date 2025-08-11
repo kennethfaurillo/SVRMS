@@ -1,4 +1,4 @@
-import type { Request } from "./types";
+import type { Request, Trip } from "./types";
 
 type Result = {
   ok: boolean;
@@ -46,7 +46,7 @@ export const exportToCsv = (requests: Request[]): Result => {
       : 'N/A';
 
     // Format the requested date/time from ISO string
-    const requestedDateTime = request.requestedDateTime ? 
+    const requestedDateTime = request.requestedDateTime ?
       new Date(request.requestedDateTime).toLocaleString() : 'N/A';
 
     const row = [
