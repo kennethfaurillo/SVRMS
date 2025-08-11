@@ -307,9 +307,16 @@ export function App() {
     <div className={`min-h-screen p-2 sm:p-4 font-sans flex flex-col items-center ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
       <div className={`w-full max-w-[95%] sm:max-w-6xl shadow-xl rounded-xl p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center sm:text-left flex-grow">
-            Service Vehicle Request
-          </h1>
+          <div className="flex-grow">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center sm:text-left">
+              Service Vehicle Request
+            </h1>
+            {user && (
+              <div className={`text-xs sm:text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Current User: <span className="font-mono break-all">{user.email}</span>
+              </div>
+            )}
+          </div>
           <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
             {/* Login/Logout Button */}
             <button
@@ -405,12 +412,6 @@ export function App() {
             <span className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setMessage('')}>
               <svg className="fill-current h-6 w-6" cursor={'pointer'} role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" /></svg>
             </span>
-          </div>
-        )}
-
-        {user && (
-          <div className={`text-center text-sm mb-4 p-2 rounded-lg ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-50 text-gray-600'}`}>
-            Current User: <span className="font-mono break-all">{user.email}</span>
           </div>
         )}
         {/* Request Submission Form */}
