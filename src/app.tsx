@@ -118,6 +118,7 @@ export function App() {
     setCurrentEditData(prevData => {
       const newData = { ...prevData };
       if (name === 'isDriverRequested') { // Handle dropdown change for isDriverRequested
+        console.log('value', value)
         newData.isDriverRequested = value;
         // If isDriverRequested changes to 'No', clear delegatedDriverName
         if (value === 'No') {
@@ -231,6 +232,7 @@ export function App() {
         const newTripRef = doc(collection(db, 'trips'));
         batch.set(newTripRef, newTrip);
         await batch.commit();
+
         // await addDoc(collection(db, 'trips'), newTrip);
         setMessage(`Request approved and new trip ${tripCode} created!`);
       } else {
@@ -276,6 +278,8 @@ export function App() {
             dateTime: existingTrip.dateTime || requestToApprove.requestedDateTime,
             vehicleAssigned: existingTrip.vehicleAssigned || requestToApprove.requestedVehicle,
             driverName: existingTrip.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
+            // Update destination to the most recent one
+            destination: requestToApprove.destination
           });
           setMessage(`Request approved and added to existing trip ${tripCode}!`);
         } else {
@@ -300,32 +304,34 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen p-4 font-sans flex flex-col items-center ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
-      <div className={`w-full max-w-10/12 shadow-xl rounded-xl p-6 md:p-8 space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-extrabold text-center flex-grow">
+    <div className={`min-h-screen p-2 sm:p-4 font-sans flex flex-col items-center ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
+      <div className={`w-full max-w-[95%] sm:max-w-6xl shadow-xl rounded-xl p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center sm:text-left flex-grow">
             Service Vehicle Request
           </h1>
-          <div className="relative flex items-center space-x-4">
+          <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
             {/* Login/Logout Button */}
             <button
               onClick={!isAdmin ? () => setShowLoginModal(true) : handleLogout}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'} cursor-pointer`}
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'} cursor-pointer`}
               title={!isAdmin ? "Sign In" : "Sign Out"}
             >
               {!isAdmin ? (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
-                  Sign In
+                  <span className="hidden sm:inline">Sign In</span>
+                  <span className="sm:hidden">Login</span>
                 </>
               ) : (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                  Sign Out
+                  <span className="hidden sm:inline">Sign Out</span>
+                  <span className="sm:hidden">Logout</span>
                 </>
               )}
             </button>
@@ -333,15 +339,15 @@ export function App() {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              className={`p-2 rounded-full transition-colors duration-200 ease-in-out ${darkMode ? 'bg-gray-700 text-yellow-300 hover:bg-gray-600' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'} cursor-pointer`}
+              className={`p-1.5 sm:p-2 rounded-full transition-colors duration-200 ease-in-out ${darkMode ? 'bg-gray-700 text-yellow-300 hover:bg-gray-600' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'} cursor-pointer`}
               title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {darkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h1M3 12H2m8.007-4.243l.707-.707M15.293 15.293l.707.707M12 18a6 6 0 110-12 6 6 0 010 12zM4.243 4.243l-.707.707m11.314 11.314l.707.707M4.243 15.757l-.707-.707m11.314-11.314l.707-.707" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z" />
                 </svg>
               )}
@@ -350,14 +356,14 @@ export function App() {
             {/* Notification Bell */}
             <button
               onClick={() => setShowNotifications(prev => !prev)}
-              className={`p-2 rounded-full transition-colors duration-200 ease-in-out ${darkMode ? 'bg-gray-700 text-blue-300 hover:bg-gray-600' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'} cursor-pointer`}
+              className={`relative p-1.5 sm:p-2 rounded-full transition-colors duration-200 ease-in-out ${darkMode ? 'bg-gray-700 text-blue-300 hover:bg-gray-600' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'} cursor-pointer`}
               title="Notifications"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0v1" />
               </svg>
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full min-w-[1.25rem] h-5">
                   {notifications.length}
                 </span>
               )}
@@ -365,23 +371,24 @@ export function App() {
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className={`absolute right-0 mt-2 top-full w-72 rounded-md shadow-lg ${darkMode ? 'bg-gray-700' : 'bg-white'} border border-gray-200 z-10`}>
+              <div className={`absolute right-0 mt-2 top-full w-64 sm:w-72 rounded-md shadow-lg ${darkMode ? 'bg-gray-700' : 'bg-white'} border border-gray-200 z-10`}>
                 <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                  <div className={`block px-4 py-2 text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Recent Activity</div>
+                  <div className={`block px-3 sm:px-4 py-2 text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Recent Activity</div>
                   {notifications.length === 0 ? (
-                    <div className={`block px-4 py-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>No new notifications.</div>
+                    <div className={`block px-3 sm:px-4 py-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>No new notifications.</div>
                   ) : (
-                    notifications.map(notif => (
-                      <div key={notif.id} className={`block px-4 py-2 text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'} border-b ${darkMode ? 'border-gray-600' : 'border-gray-200'} last:border-b-0`}>
-                        <span className="font-medium">{notif.type.toUpperCase()}:</span> {notif.details}
-                        <span className={`block text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{notif.timestamp}</span>
+                    notifications.slice(0, 5).map(notif => (
+                      <div key={notif.id} className={`block px-3 sm:px-4 py-2 text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'} border-b ${darkMode ? 'border-gray-600' : 'border-gray-200'} last:border-b-0`}>
+                        <span className="font-medium">{notif.type.toUpperCase()}:</span> 
+                        <span className="break-words">{notif.details}</span>
+                        <span className={`block text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>{notif.timestamp}</span>
                       </div>
                     ))
                   )}
-                  <div className="px-4 py-2">
+                  <div className="px-3 sm:px-4 py-2">
                     <button
                       onClick={() => setNotifications([])}
-                      className="w-full text-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      className="w-full text-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     >
                       Clear All
                     </button>
@@ -461,7 +468,6 @@ export function App() {
       {/* Approve Modal */}
       <ApproveModal
         darkMode={darkMode}
-        key={requestToApprove?.id}
         isOpen={showApproveModal}
         onClose={() => setShowApproveModal(false)}
         onSubmit={handleApproveSubmit}

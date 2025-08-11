@@ -10,7 +10,7 @@ export type Result = {
   message?: string;
 }
 export type Request = {
-  id: string; // ID will be set by Firestore
+  id?: string; // ID will be set by Firestore
   timestamp: Timestamp; // Optional, can be null if not set 
   requestedVehicle: ServiceVehicle; // SV Request type
   requesterName: string;
@@ -37,7 +37,7 @@ export type Trip = {
   personnel: string[];
   purpose: string[];
   destination: string;
-  requests: DocumentReference<Request>[];
+  requestIds: string[];
   status: TripStatus;
 }
 export type Department = typeof DEPARTMENTS[number];
