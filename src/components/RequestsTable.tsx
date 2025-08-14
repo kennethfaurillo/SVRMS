@@ -9,6 +9,7 @@ interface RequestsTableProps {
     darkMode: boolean;
     editingRequestId: string | null;
     currentEditData: Request | null;
+    updatingRequestId: string | null;
     handleEditChange: (e: any) => void;
     saveEditedRequest: (requestId: string) => Promise<void>;
     cancelEditing: () => void;
@@ -23,6 +24,7 @@ export default function RequestsTable({
     darkMode,
     editingRequestId,
     currentEditData,
+    updatingRequestId,
     handleEditChange,
     saveEditedRequest,
     cancelEditing,
@@ -63,7 +65,7 @@ export default function RequestsTable({
             {requests.length === 0 ? (
                 <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center`}>No requests submitted yet.</p>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-64">
                     <table className="min-w-full border-collapse">
                         <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
                             <tr>
@@ -80,7 +82,7 @@ export default function RequestsTable({
                                 }
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody >
                             {sortedRequests.map((request: Request, index) => (
                                 <tr key={request.id} className={`${index % 2 === 0 ? (darkMode ? 'bg-gray-800' : 'bg-white') : (darkMode ? 'bg-gray-700' : 'bg-gray-50')} ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}>
 
@@ -244,7 +246,7 @@ export default function RequestsTable({
                                             </div>
                                         ) : (
                                             <div>
-                                                <div className={editingRequestId === request.id ? '' : 'truncate sm:whitespace-normal'}>
+                                                <div className={editingRequestId === request.id ? '' : 'sm:whitespace-normal'}>
                                                     {request.purpose}
                                                 </div>
                                                 {/* Mobile: Show destination inline */}
@@ -384,24 +386,40 @@ export default function RequestsTable({
                                                 <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
                                                     <button
                                                         onClick={() => request.id && saveEditedRequest(request.id)}
-                                                        className="px-2 sm:px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 transition duration-150 ease-in-out cursor-pointer"
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                            ${updatingRequestId === request.id
+                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                            }`}
                                                     >
-                                                        Save
+                                                        <span className="hidden sm:inline">
+                                                            {updatingRequestId === request.id ? 'Saving...' : 'Save'}
+                                                        </span>
+                                                        <span className="sm:hidden">
+                                                            {updatingRequestId === request.id ? '⏳' : '💾'}
+                                                        </span>
                                                     </button>
                                                     <button
                                                         onClick={cancelEditing}
-                                                        className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded-md text-xs hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer"
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                            ${updatingRequestId === request.id
+                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
+                                                            }`}
                                                     >
-                                                        Cancel
+                                                        <span className="hidden sm:inline">Cancel</span>
+                                                        <span className="sm:hidden">❌</span>
                                                     </button>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
                                                     <button
                                                         onClick={() => handleUpdateClick(request)}
-                                                        disabled={!isAdmin}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
                                                         className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin
+                                                        ${isAdmin && updatingRequestId !== request.id
                                                                 ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
                                                                 : 'bg-blue-300 text-gray-200 cursor-not-allowed'
                                                             }`
@@ -413,29 +431,39 @@ export default function RequestsTable({
                                                         !(isAdmin && request.status == 'Pending') ? null :
                                                             <button
                                                                 onClick={() => handleApproveClick(request)}
-                                                                disabled={!isAdmin || request.status !== 'Pending'}
+                                                                disabled={!isAdmin || request.status !== 'Pending' || updatingRequestId === request.id}
                                                                 className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && request.status === 'Pending'
+                                                        ${isAdmin && request.status === 'Pending' && updatingRequestId !== request.id
                                                                         ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
                                                                         : 'bg-green-300 text-gray-200 cursor-not-allowed'
                                                                     }`
                                                                 }
                                                                 title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
                                                             >
-                                                                Approve
+                                                                <span className="hidden sm:inline">
+                                                                    {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
+                                                                </span>
+                                                                <span className="sm:hidden">
+                                                                    {updatingRequestId === request.id ? '⏳' : 'Approve'}
+                                                                </span>
                                                             </button>
                                                     }
                                                     <button
                                                         onClick={() => handleDeleteClick(request)}
-                                                        disabled={!isAdmin}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
                                                         className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin
+                                                        ${isAdmin && updatingRequestId !== request.id
                                                                 ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
                                                                 : 'bg-red-300 text-gray-200 cursor-not-allowed'
                                                             }`
                                                         }
                                                     >
-                                                        Delete
+                                                        <span className="hidden sm:inline">
+                                                            {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
+                                                        </span>
+                                                        <span className="sm:hidden">
+                                                            {updatingRequestId === request.id ? '⏳' : 'Delete'}
+                                                        </span>
                                                     </button>
                                                 </div>
                                             )}

@@ -1,5 +1,6 @@
-import { addDoc, collection, deleteDoc, doc, DocumentReference, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+import notif from "./assets/notif-request.mp3";
 import ApproveModal from './components/ApproveModal';
 import Loader from './components/Loader';
 import LoginModal from './components/LoginModal';
@@ -17,13 +18,21 @@ export function App() {
   // Firebase 
   const db = firebaseFirestore
   const [message, setMessage] = useState('');
+
+  // Request editing states
+  const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
-  const [currentEditData, setCurrentEditData] = useState<Request | null>(null); // Stores data for the currently edited row
+  const [currentEditRequestData, setCurrentEditRequestData] = useState<Request | null>(null);
+
+  // Trip editing states
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [currentEditTripData, setCurrentEditTripData] = useState<Trip | null>(null);
+  const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
-  const { requests, addRequest } = useRequests();
+  const { requests, addRequest } = useRequests(handleRequestChange);
   const { trips } = useTrips();
   const { user, isAdmin, signOutUser } = useAuth();
 
@@ -74,48 +83,56 @@ export function App() {
   const addNotification = (type: Notification['type'], details: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setNotifications(prev => [{ id: Date.now().toString(), type, details, timestamp }, ...prev].slice(0, 5)); // Keep last 5 notifications
+    new Audio(notif).play();
   };
   // Function to handle request form submission
   const handleSubmitRequest = async (requestData: Request) => {
     const response = await addRequest(requestData);
     if (response.ok) {
-      addNotification('added', `${requestData.requesterName} Added request ${requestData.requestedVehicle}.`)
       setMessage(`Request submitted successfully! ID: ${response.docRef?.id}`);
     } else {
       setMessage(`Error submitting request: ${response.error}`);
     }
   }
-  // Function to initiate editing, showing the admin modal first
-  const handleUpdateClick = (request: Request) => {
+
+  // ===== REQUEST HANDLERS =====
+
+  // Function to initiate request editing
+  const handleEditRequest = (request: Request) => {
     if (request?.id) {
       setEditingRequestId(request.id);
-      setCurrentEditData(request);
+      setCurrentEditRequestData(request);
     }
   };
 
-  // Function to initiate deletion, showing the admin modal first
-  const handleDeleteClick = async (request: Request) => {
+  // Function to delete a request
+  const handleDeleteRequest = async (request: Request) => {
+    if (!request.id) return;
+    setUpdatingRequestId(request.id);
     try {
-      await deleteDoc(doc(db, `requests`, request.id));
-      addNotification('deleted', `${request.requesterName} Deleted request: "${request.requestedVehicle}"`);
+      await deleteDoc(doc(db, 'requests', request.id));
       setMessage(`Request ${request.requestedVehicle} (${new Date(request.requestedDateTime).toLocaleString()}) deleted successfully!`);
     } catch (error) {
       console.error("Error deleting document:", error);
-      setMessage(`Error deleting request: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error deleting request: ${errorMessage}`);
+    } finally {
+      setUpdatingRequestId(null);
     }
   };
 
-  // Function to cancel editing
-  const cancelEditing = () => {
+  // Function to cancel request editing
+  const cancelRequestEditing = () => {
     setEditingRequestId(null);
-    setCurrentEditData(null);
+    setCurrentEditRequestData(null);
     setMessage(''); // Clear any previous messages
   };
 
-  // Handle changes in editable fields
-  const handleEditChange = (e) => {
+  // Handle changes in request editable fields
+  const handleRequestEditChange = (e: any) => {
     const { name, value } = e.target;
-    setCurrentEditData(prevData => {
+    setCurrentEditRequestData(prevData => {
+      if (!prevData) return null;
       const newData = { ...prevData };
       if (name === 'isDriverRequested') { // Handle dropdown change for isDriverRequested
         console.log('value', value)
@@ -126,7 +143,7 @@ export function App() {
           newData.delegatedDriverName = null;
         }
       } else {
-        newData[name] = value;
+        (newData as any)[name] = value;
       }
 
       if (name === 'remarks' && !(value || '').toLowerCase().includes('completed')) {
@@ -143,40 +160,155 @@ export function App() {
       return;
     }
 
-    if (!currentEditData) {
+    if (!currentEditRequestData) {
       setMessage("No edit data found.");
       return;
     }
 
+    setUpdatingRequestId(requestId);
     try {
       const dataToUpdate = {
-        requestedVehicle: currentEditData.requestedVehicle,
-        requesterName: currentEditData.requesterName,
-        department: currentEditData.department,
-        isDriverRequested: currentEditData.isDriverRequested,
-        delegatedDriverName: currentEditData.delegatedDriverName ?? null,
-        purpose: currentEditData.purpose,
-        destination: currentEditData.destination,
-        requestedDateTime: currentEditData.requestedDateTime,
-        status: currentEditData.status,
-        remarks: currentEditData.remarks,
-        completedDate: (currentEditData.remarks || '').toLowerCase().includes('completed') ? currentEditData.completedDate : null,
+        requestedVehicle: currentEditRequestData.requestedVehicle,
+        requesterName: currentEditRequestData.requesterName,
+        department: currentEditRequestData.department,
+        isDriverRequested: currentEditRequestData.isDriverRequested,
+        delegatedDriverName: currentEditRequestData.delegatedDriverName ?? null,
+        purpose: currentEditRequestData.purpose,
+        destination: currentEditRequestData.destination,
+        requestedDateTime: currentEditRequestData.requestedDateTime,
+        status: currentEditRequestData.status,
+        remarks: currentEditRequestData.remarks,
+        completedDate: (currentEditRequestData.remarks || '').toLowerCase().includes('completed') ? currentEditRequestData.completedDate : null,
       };
 
       await updateDoc(doc(db, `requests`, requestId), dataToUpdate);
 
-      let notificationDetails = `${currentEditData.requesterName} Updated request ${currentEditData.requestedVehicle}.`;
-
-      addNotification('updated', notificationDetails);
       setMessage(`Request ${requestId} updated successfully!`);
       setEditingRequestId(null);
-      setCurrentEditData(null);
+      setCurrentEditRequestData(null);
     } catch (error) {
       console.error("Error updating request:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessage(`Error updating request: ${errorMessage}`);
-      let notificationDetails = `Failed to update request "${currentEditData.requestedVehicle}" by ${currentEditData.requesterName}. Error: ${errorMessage}`;
-      addNotification('update attempt', notificationDetails);
+    } finally {
+      setUpdatingRequestId(null);
+    }
+  };
+  // Handle request changes
+  function handleRequestChange(type: 'added' | 'modified' | 'removed', request: Request) {
+    switch (type) {
+      case 'added':
+        addNotification('added', `New request from ${request.requesterName} for ${request.requestedVehicle}`);
+        break;
+      case 'modified':
+        addNotification('updated', `Request updated: ${request.requesterName} - ${request.requestedVehicle} (${request.status})`);
+        break;
+      // No need to notify for deletes
+      // case 'removed':
+      //   addNotification('deleted', `Request deleted: ${request.requesterName} - ${request.requestedVehicle}`);
+      //   break;
+    }
+  };
+
+  // ===== TRIP HANDLERS =====
+
+  // Function to initiate trip editing
+  const handleEditTrip = (trip: Trip) => {
+    if (!isAdmin) return;
+    setEditingTripId(trip.id);
+    setCurrentEditTripData(trip);
+  };
+
+  // Function to delete a trip
+  const handleDeleteTrip = async (trip: Trip) => {
+    if (!isAdmin || !db) return;
+
+    setUpdatingTripId(trip.id);
+    try {
+      await deleteDoc(doc(db, 'trips', trip.id));
+      setMessage(`Trip ${trip.tripCode} deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error deleting trip: ${errorMessage}`);
+    } finally {
+      setUpdatingTripId(null);
+    }
+  };
+
+  // Function to cancel trip editing
+  const cancelTripEditing = () => {
+    setEditingTripId(null);
+    setCurrentEditTripData(null);
+  };
+
+  // Handle changes in trip editable fields
+  const handleTripEditChange = (e: any) => {
+    const { name, value } = e.target;
+    setCurrentEditTripData(prevData => {
+      if (!prevData) return null;
+      const newData = { ...prevData };
+
+      if (name === 'personnel') {
+        // Split by comma and trim whitespace
+        newData.personnel = value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+      } else if (name === 'purpose') {
+        // Split by comma and trim whitespace
+        newData.purpose = value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+      } else {
+        (newData as any)[name] = value;
+      }
+
+      return newData;
+    });
+  };
+
+  // Function to save edited trip
+  const saveEditedTrip = async (tripId: string) => {
+    if (!isAdmin || !db || !currentEditTripData) return;
+
+    setUpdatingTripId(tripId);
+    try {
+      const dataToUpdate = {
+        dateTime: currentEditTripData.dateTime,
+        vehicleAssigned: currentEditTripData.vehicleAssigned,
+        driverName: currentEditTripData.driverName || null,
+        personnel: currentEditTripData.personnel,
+        purpose: currentEditTripData.purpose,
+        destination: currentEditTripData.destination,
+        status: currentEditTripData.status
+      };
+
+      await updateDoc(doc(db, 'trips', tripId), dataToUpdate);
+      setMessage(`Trip ${currentEditTripData.tripCode} updated successfully!`);
+      setEditingTripId(null);
+      setCurrentEditTripData(null);
+    } catch (error) {
+      console.error('Error updating trip:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error updating trip: ${errorMessage}`);
+      // addNotification('update attempt', `Failed to update trip ${currentEditTripData.tripCode}. Error: ${errorMessage}`);
+    } finally {
+      setUpdatingTripId(null);
+    }
+  };
+
+  // Function to mark trip as fulfilled
+  const handleMarkTripAsFulfilled = async (trip: Trip) => {
+    if (!isAdmin || !db) return;
+
+    setUpdatingTripId(trip.id);
+    try {
+      await updateDoc(doc(db, 'trips', trip.id), {
+        status: 'Fulfilled'
+      });
+      setMessage(`Trip ${trip.tripCode} marked as fulfilled!`);
+    } catch (error) {
+      console.error('Error updating trip status:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error updating trip status: ${errorMessage}`);
+    } finally {
+      setUpdatingTripId(null);
     }
   };
 
@@ -193,7 +325,7 @@ export function App() {
 
   // Function to handle trip approval and management
   const handleApproveSubmit = async (tripCode: string, isNewTrip: boolean, tripData?: Partial<Trip>) => {
-    if (!requestToApprove || !db) {
+    if (!requestToApprove || !db || !requestToApprove.id) {
       setMessage("No request to approve or Firebase not initialized.");
       return;
     }
@@ -205,9 +337,6 @@ export function App() {
 
       if (isNewTrip) {
         // Update the request with approved status
-        // await updateDoc(requestRef, {
-        //   status: 'Approved'
-        // });
         batch.update(requestRef, {
           status: 'Approved',
           requestedDateTime: tripData?.dateTime || requestToApprove.requestedDateTime,
@@ -226,14 +355,13 @@ export function App() {
           personnel: [requestToApprove.requesterName],
           purpose: [requestToApprove.purpose],
           destination: requestToApprove.destination,
-          requests: [doc(db, 'requests', requestToApprove.id) as DocumentReference<Request>],
+          requestIds: [requestToApprove.id],
           status: 'Not Fulfilled'
         };
         const newTripRef = doc(collection(db, 'trips'));
         batch.set(newTripRef, newTrip);
         await batch.commit();
 
-        // await addDoc(collection(db, 'trips'), newTrip);
         setMessage(`Request approved and new trip ${tripCode} created!`);
       } else {
         // Find existing trip by tripCode and append request reference
@@ -246,7 +374,6 @@ export function App() {
           const existingTrip = existingTripDoc.data() as Trip;
 
           // Update the request to match the existing trip's datetime, vehicle, and driver
-          // but keep the request's own personnel, purpose, destination, and remarks
           await updateDoc(requestRef, {
             status: 'Approved',
             requestedDateTime: existingTrip.dateTime,
@@ -254,8 +381,7 @@ export function App() {
             isDriverRequested: existingTrip.driverName ? 'Yes' : 'No',
             delegatedDriverName: existingTrip.driverName || null
           });
-
-          const updatedRequests = [...existingTrip.requests, requestRef as any];
+          const updatedRequestIds = [...existingTrip.requestIds, requestToApprove.id];
 
           // Update personnel array (add if not already present)
           const updatedPersonnel = [...(existingTrip.personnel || [])];
@@ -269,32 +395,40 @@ export function App() {
             updatedPurpose.push(requestToApprove.purpose);
           }
 
+          // Merge destinations - append/merge instead of replacing
+          let mergedDestination = existingTrip.destination || '';
+          if (requestToApprove.destination && requestToApprove.destination.trim()) {
+            if (mergedDestination && !mergedDestination.toLowerCase().includes(requestToApprove.destination.toLowerCase())) {
+              mergedDestination = `${mergedDestination}; ${requestToApprove.destination}`;
+            } else if (!mergedDestination) {
+              mergedDestination = requestToApprove.destination;
+            }
+          }
+
           // Update the trip with new request data
           await updateDoc(doc(db, 'trips', existingTripDoc.id), {
-            requests: updatedRequests,
+            requestIds: updatedRequestIds,
             personnel: updatedPersonnel,
             purpose: updatedPurpose,
             // Keep the existing dateTime, vehicleAssigned, and driverName unless they're not set
             dateTime: existingTrip.dateTime || requestToApprove.requestedDateTime,
             vehicleAssigned: existingTrip.vehicleAssigned || requestToApprove.requestedVehicle,
             driverName: existingTrip.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
-            // Update destination to the most recent one
-            destination: requestToApprove.destination
+            // Merge destinations instead of replacing
+            destination: mergedDestination
           });
-          setMessage(`Request approved and added to existing trip ${tripCode}!`);
+          setMessage(`Request approved and added to existing trip ${tripCode}! Destinations merged.`);
         } else {
           setMessage(`Error: Trip ${tripCode} not found!`);
           return;
         }
       }
 
-      addNotification('updated', `${requestToApprove.requesterName} Request approved for trip ${tripCode}.`);
       setRequestToApprove(null);
     } catch (error) {
       console.error("Error approving request:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessage(`Error approving request: ${errorMessage}`);
-      addNotification('update attempt', `Failed to approve request "${requestToApprove.requestedVehicle}" by ${requestToApprove.requesterName}. Error: ${errorMessage}`);
     }
   };
 
@@ -386,7 +520,7 @@ export function App() {
                   ) : (
                     notifications.slice(0, 5).map(notif => (
                       <div key={notif.id} className={`block px-3 sm:px-4 py-2 text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'} border-b ${darkMode ? 'border-gray-600' : 'border-gray-200'} last:border-b-0`}>
-                        <span className="font-medium">{notif.type.toUpperCase()}:</span> 
+                        <span className="font-medium">{notif.type.toUpperCase()}: </span>
                         <span className="break-words">{notif.details}</span>
                         <span className={`block text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>{notif.timestamp}</span>
                       </div>
@@ -444,12 +578,13 @@ export function App() {
           requests={requests}
           darkMode={darkMode}
           editingRequestId={editingRequestId}
-          currentEditData={currentEditData}
-          handleEditChange={handleEditChange}
+          currentEditData={currentEditRequestData}
+          updatingRequestId={updatingRequestId}
+          handleEditChange={handleRequestEditChange}
           saveEditedRequest={saveEditedRequest}
-          cancelEditing={cancelEditing}
-          handleUpdateClick={handleUpdateClick}
-          handleDeleteClick={handleDeleteClick}
+          cancelEditing={cancelRequestEditing}
+          handleUpdateClick={handleEditRequest}
+          handleDeleteClick={handleDeleteRequest}
           handleExportClick={handleExportClick}
           handleApproveClick={handleApproveClick}
         />
@@ -458,6 +593,15 @@ export function App() {
         <TripsTable
           trips={trips}
           darkMode={darkMode}
+          editingTripId={editingTripId}
+          currentEditTripData={currentEditTripData}
+          updatingTripId={updatingTripId}
+          handleEditTrip={handleEditTrip}
+          handleDeleteTrip={handleDeleteTrip}
+          cancelTripEditing={cancelTripEditing}
+          handleTripEditChange={handleTripEditChange}
+          saveEditedTrip={saveEditedTrip}
+          handleMarkTripAsFulfilled={handleMarkTripAsFulfilled}
         />
       </div>
       {/* Login Modal */}

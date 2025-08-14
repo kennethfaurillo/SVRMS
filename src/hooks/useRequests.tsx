@@ -1,5 +1,5 @@
 import { addDoc, collection, onSnapshot, query, waitForPendingWrites } from "firebase/firestore";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
 import { firebaseAuth, firebaseFirestore } from "../firebase";
 import type { Request, Result, SVRStatus } from "../types";
@@ -8,12 +8,13 @@ import type { Request, Result, SVRStatus } from "../types";
  * Custom hook to manage requests in the application.
  * Provides functionality to add, update, and delete requests in Firestore.
  */
-export default function useRequests() {
+export default function useRequests(onRequestChange?: (type: 'added' | 'modified' | 'removed', request: Request) => void) {
     const db = firebaseFirestore
     const auth = firebaseAuth
 
     const [requests, setRequests] = useState<Request[]>([]);
     const { user } = useAuth();
+    const isInitialLoad = useRef(true);
 
     useEffect(() => {
         if (db && auth && user) {
@@ -22,6 +23,14 @@ export default function useRequests() {
 
             const unsubscribe = onSnapshot(q, async (snapshot) => {
                 await waitForPendingWrites(firebaseFirestore)
+                // Track changes for notifications (skip initial load)
+                if (!isInitialLoad.current && onRequestChange) {
+                    console.log("Request changes detected:", snapshot.docChanges());
+                    snapshot.docChanges().forEach((change) => {
+                        const request = { ...change.doc.data() as Request, id: change.doc.id };
+                        onRequestChange(change.type, request);
+                    });
+                }
                 // create a  new type for fetched requests
                 const fetchedRequests: Request[] = snapshot.docs.map(doc => ({
                     ...doc.data() as Request,
@@ -37,12 +46,13 @@ export default function useRequests() {
                         return statusA - statusB; // Sort by status (Pending before Approved)
                     } else {
                         // If statuses are the same, sort by timestamp (most recent first)
-                        const timestampA = a.timestamp?.toDate() || 0;
-                        const timestampB = b.timestamp?.toDate() || 0;
+                        const timestampA = a.timestamp?.toDate()?.getTime() || 0;
+                        const timestampB = b.timestamp?.toDate()?.getTime() || 0;
                         return timestampB - timestampA;
                     }
                 });
                 setRequests(fetchedRequests);
+                isInitialLoad.current = false;
                 // console.log("Requests fetched successfully:", fetchedRequests);
             }, (error) => {
                 console.error("Error fetching requests:", error);

@@ -274,7 +274,7 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                                 <option value="">-- Select a trip --</option>
                                 {existingTrips.map((trip) => (
                                     <option key={trip.id} value={trip.tripCode}>
-                                        {trip.tripCode} ({trip.requests.length} request{trip.requests.length !== 1 ? 's' : ''})
+                                        {trip.tripCode} ({trip.requestIds.length} request{trip.requestIds.length !== 1 ? 's' : ''})
                                     </option>
                                 ))}
                             </select>
@@ -315,13 +315,12 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                                             </div>
                                         )}
 
-                                        {/* Destination changes */}
                                         {selectedTrip.destination !== request.destination && (
                                             <div className={`${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
-                                                <strong>Destination will change:</strong>
+                                                <strong>Destination will be updated:</strong>
                                                 <div className="ml-4">
-                                                    <div>From: {request.destination}</div>
-                                                    <div>To: {selectedTrip.destination}</div>
+                                                    <div>Current: {selectedTrip.destination}</div>
+                                                    <div>Updated: {selectedTrip.destination}, {request.destination}</div>
                                                 </div>
                                             </div>
                                         )}

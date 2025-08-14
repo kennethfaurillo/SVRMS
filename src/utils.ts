@@ -1,4 +1,4 @@
-import type { Request, Trip } from "./types";
+import type { Request } from "./types";
 
 type Result = {
   ok: boolean;

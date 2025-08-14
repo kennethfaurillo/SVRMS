@@ -1,100 +1,36 @@
-import { doc, updateDoc } from "firebase/firestore";
-import { useState } from "preact/hooks";
-import { SERVICE_VEHICLES } from "../constants";
-import { useAuth } from "../contexts/AuthContext";
-import { firebaseFirestore } from "../firebase";
 import type { Trip } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
+import { SERVICE_VEHICLES } from "../constants";
+import { useAuth } from "../contexts/AuthContext";
 
 interface TripsTableProps {
     trips: Trip[];
     darkMode: boolean;
+    editingTripId: string | null;
+    currentEditTripData: Trip | null;
+    updatingTripId: string | null;
+    handleEditTrip: (trip: Trip) => void;
+    handleDeleteTrip: (trip: Trip) => void;
+    cancelTripEditing: () => void;
+    handleTripEditChange: (e: any) => void;
+    saveEditedTrip: (tripId: string) => void;
+    handleMarkTripAsFulfilled: (trip: Trip) => void;
 }
 
 export default function TripsTable({
     trips,
-    darkMode
+    darkMode,
+    editingTripId,
+    currentEditTripData,
+    updatingTripId,
+    handleEditTrip,
+    handleDeleteTrip,
+    cancelTripEditing,
+    handleTripEditChange,
+    saveEditedTrip,
+    handleMarkTripAsFulfilled
 }: TripsTableProps) {
     const { isAdmin } = useAuth();
-    const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
-    const [editingTripId, setEditingTripId] = useState<string | null>(null);
-    const [currentEditData, setCurrentEditData] = useState<Trip | null>(null);
-
-    // Function to mark trip as fulfilled
-    const handleMarkAsFulfilled = async (trip: Trip) => {
-        if (!isAdmin || !firebaseFirestore) return;
-
-        setUpdatingTripId(trip.id);
-        try {
-            await updateDoc(doc(firebaseFirestore, 'trips', trip.id), {
-                status: 'Fulfilled'
-            });
-        } catch (error) {
-            console.error('Error updating trip status:', error);
-        } finally {
-            setUpdatingTripId(null);
-        }
-    };
-
-    // Function to initiate editing
-    const handleEditClick = (trip: Trip) => {
-        if (!isAdmin) return;
-        setEditingTripId(trip.id);
-        setCurrentEditData(trip);
-    };
-
-    // Function to cancel editing
-    const cancelEditing = () => {
-        setEditingTripId(null);
-        setCurrentEditData(null);
-    };
-
-    // Handle changes in editable fields
-    const handleEditChange = (e: any) => {
-        const { name, value } = e.target;
-        setCurrentEditData(prevData => {
-            if (!prevData) return null;
-            const newData = { ...prevData };
-            
-            if (name === 'personnel') {
-                // Split by comma and trim whitespace
-                newData.personnel = value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
-            } else if (name === 'purpose') {
-                // Split by comma and trim whitespace
-                newData.purpose = value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
-            } else {
-                (newData as any)[name] = value;
-            }
-            
-            return newData;
-        });
-    };
-
-    // Function to save edited trip
-    const saveEditedTrip = async (tripId: string) => {
-        if (!isAdmin || !firebaseFirestore || !currentEditData) return;
-        
-        setUpdatingTripId(tripId);
-        try {
-            const dataToUpdate = {
-                dateTime: currentEditData.dateTime,
-                vehicleAssigned: currentEditData.vehicleAssigned,
-                driverName: currentEditData.driverName || null,
-                personnel: currentEditData.personnel,
-                purpose: currentEditData.purpose,
-                destination: currentEditData.destination,
-                status: currentEditData.status
-            };
-
-            await updateDoc(doc(firebaseFirestore, 'trips', tripId), dataToUpdate);
-            setEditingTripId(null);
-            setCurrentEditData(null);
-        } catch (error) {
-            console.error('Error updating trip:', error);
-        } finally {
-            setUpdatingTripId(null);
-        }
-    };
 
     // Define pastel colors for alternating trips
     const pastelColors = [
@@ -118,7 +54,7 @@ export default function TripsTable({
             {trips.length === 0 ? (
                 <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center py-8`}>No approved trips yet.</p>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-64">
                     <table className="min-w-full border-collapse">
                         <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
                             <tr>
@@ -144,20 +80,20 @@ export default function TripsTable({
                                             {editingTripId === trip.id ? (
                                                 <div className="space-y-2">
                                                     {/* Trip Code - Not editable */}
-                                                    <div className="text-base sm:text-lg font-bold text-gray-500">{trip.tripCode}</div>
+                                                    <div className="text-sm font-bold text-gray-500">{trip.tripCode}</div>
                                                     {/* Date/Time - Combined */}
                                                     <input
                                                         type="datetime-local"
                                                         name="dateTime"
-                                                        value={currentEditData?.dateTime || ''}
-                                                        onChange={handleEditChange}
+                                                        value={currentEditTripData?.dateTime || ''}
+                                                        onChange={handleTripEditChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     />
                                                     {/* Service Vehicle */}
                                                     <select
                                                         name="vehicleAssigned"
-                                                        value={currentEditData?.vehicleAssigned || ''}
-                                                        onChange={handleEditChange}
+                                                        value={currentEditTripData?.vehicleAssigned || ''}
+                                                        onChange={handleTripEditChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     >
                                                         <option value="">-- Select Vehicle --</option>
@@ -169,8 +105,8 @@ export default function TripsTable({
                                                     <input
                                                         type="text"
                                                         name="driverName"
-                                                        value={currentEditData?.driverName || ''}
-                                                        onChange={handleEditChange}
+                                                        value={currentEditTripData?.driverName || ''}
+                                                        onChange={handleTripEditChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Driver name (optional)"
                                                     />
@@ -179,8 +115,8 @@ export default function TripsTable({
                                                         <input
                                                             type="text"
                                                             name="personnel"
-                                                            value={currentEditData?.personnel?.join(', ') || ''}
-                                                            onChange={handleEditChange}
+                                                            value={currentEditTripData?.personnel?.join(', ') || ''}
+                                                            onChange={handleTripEditChange}
                                                             className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                             placeholder="Personnel (comma-separated)"
                                                         />
@@ -189,9 +125,9 @@ export default function TripsTable({
                                             ) : (
                                                 <div className="space-y-1">
                                                     {/* Trip Code - Bold and Bigger */}
-                                                    <div className="text-base sm:text-lg font-bold">{trip.tripCode}</div>
+                                                    <div className="text-base font-bold">{trip.tripCode}</div>
                                                     {/* Date/Time - Combined in one line, shorter on mobile */}
-                                                    <div className="text-xs sm:text-sm font-medium">
+                                                    <div className="text-xs font-medium">
                                                         {trip.dateTime ?
                                                             new Date(trip.dateTime).toLocaleString([], {
                                                                 month: '2-digit',
@@ -224,8 +160,8 @@ export default function TripsTable({
                                                 <input
                                                     type="text"
                                                     name="personnel"
-                                                    value={currentEditData?.personnel?.join(', ') || ''}
-                                                    onChange={handleEditChange}
+                                                    value={currentEditTripData?.personnel?.join(', ') || ''}
+                                                    onChange={handleTripEditChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     placeholder="Personnel (comma-separated)"
                                                 />
@@ -243,9 +179,9 @@ export default function TripsTable({
                                                     <input
                                                         type="text"
                                                         name="purpose"
-                                                        value={currentEditData?.purpose?.join(', ') || ''}
-                                                        onChange={handleEditChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        value={currentEditTripData?.purpose?.join(', ') || ''}
+                                                        onChange={handleTripEditChange}
+                                                        className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Purpose (comma-separated)"
                                                     />
                                                     {/* Mobile: Show destination inline when editing */}
@@ -253,16 +189,16 @@ export default function TripsTable({
                                                         <input
                                                             type="text"
                                                             name="destination"
-                                                            value={currentEditData?.destination || ''}
-                                                            onChange={handleEditChange}
+                                                            value={currentEditTripData?.destination || ''}
+                                                            onChange={handleTripEditChange}
                                                             className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                             placeholder="Destination"
                                                         />
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="text-xs sm:text-sm max-w-xs break-words">
-                                                    <div className="truncate sm:whitespace-normal">
+                                                <div className="break-words">
+                                                    <div className="sm:whitespace-normal">
                                                         {trip.purpose?.join(', ') || 'N/A'}
                                                     </div>
                                                     {/* Mobile: Show destination inline */}
@@ -283,8 +219,8 @@ export default function TripsTable({
                                                 <input
                                                     type="text"
                                                     name="destination"
-                                                    value={currentEditData?.destination || ''}
-                                                    onChange={handleEditChange}
+                                                    value={currentEditTripData?.destination || ''}
+                                                    onChange={handleTripEditChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     placeholder="Destination"
                                                 />
@@ -300,8 +236,8 @@ export default function TripsTable({
                                             {editingTripId === trip.id ? (
                                                 <select
                                                     name="status"
-                                                    value={currentEditData?.status || ''}
-                                                    onChange={handleEditChange}
+                                                    value={currentEditTripData?.status || ''}
+                                                    onChange={handleTripEditChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 >
                                                     <option value="Not Fulfilled">Not Fulfilled</option>
@@ -337,7 +273,7 @@ export default function TripsTable({
                                                             </span>
                                                         </button>
                                                         <button
-                                                            onClick={cancelEditing}
+                                                            onClick={cancelTripEditing}
                                                             disabled={updatingTripId === trip.id}
                                                             className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                                 ${updatingTripId === trip.id
@@ -351,9 +287,9 @@ export default function TripsTable({
                                                     </div>
                                                 ) : (
                                                     // Normal mode: Show Edit button and Mark as Fulfilled button
-                                                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                                                    <div className="flex flex-col sm:flex-row w-fit gap-1 sm:gap-2">
                                                         <button
-                                                            onClick={() => handleEditClick(trip)}
+                                                            onClick={() => handleEditTrip(trip)}
                                                             disabled={updatingTripId === trip.id}
                                                             className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                                 ${updatingTripId === trip.id
@@ -362,11 +298,11 @@ export default function TripsTable({
                                                                 }`}
                                                         >
                                                             <span className="hidden sm:inline">Edit</span>
-                                                            <span className="sm:hidden">✏️</span>
+                                                            <span className="sm:hidden">Edit</span>
                                                         </button>
                                                         {trip.status === 'Not Fulfilled' && (
                                                             <button
-                                                                onClick={() => handleMarkAsFulfilled(trip)}
+                                                                onClick={() => handleMarkTripAsFulfilled(trip)}
                                                                 disabled={updatingTripId === trip.id}
                                                                 className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                                     ${updatingTripId === trip.id
@@ -378,10 +314,22 @@ export default function TripsTable({
                                                                     {updatingTripId === trip.id ? 'Updating...' : 'Mark as Fulfilled'}
                                                                 </span>
                                                                 <span className="sm:hidden">
-                                                                    {updatingTripId === trip.id ? '⏳' : '✅'}
+                                                                    {updatingTripId === trip.id ? '⏳' : 'Mark as Fulfilled'}
                                                                 </span>
                                                             </button>
                                                         )}
+                                                        <button
+                                                            onClick={() => handleDeleteTrip(trip)}
+                                                            disabled={updatingTripId === trip.id}
+                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                                ${updatingTripId === trip.id
+                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                    : 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
+                                                                }`}
+                                                        >
+                                                            <span className="hidden sm:inline">Delete</span>
+                                                            <span className="sm:hidden">Delete</span>
+                                                        </button>
                                                     </div>
                                                 )}
                                             </td>

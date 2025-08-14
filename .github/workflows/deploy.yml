@@ -1,0 +1,45 @@
+name: Deploy to Staging
+
+on:
+    push:
+        branches: [master]
+env:
+    SSH_HOST: ${{secrets.SSH_TEST_HOST}}
+    SSH_USER: ${{secrets.SSH_USER}}
+    SSH_KEY: ${{secrets.SSH_TEST_PRIV_KEY}}
+    VITE_FB_API_KEY: ${{secrets.VITE_FB_API_KEY}}
+    VITE_FB_PROJECT_ID: ${{secrets.VITE_FB_PROJECT_ID}}
+    VITE_FB_MESSAGING_ID: ${{secrets.VITE_FB_MESSAGING_ID}}
+    VITE_FB_APP_ID: ${{secrets.VITE_FB_APP_ID}}
+    VITE_FB_MEASUREMENT_ID: ${{secrets.VITE_FB_MEASUREMENT_ID}}
+    VITE_FB_ANON_EMAIL: ${{secrets.VITE_FB_ANON_EMAIL}}
+    VITE_FB_ANON_PASSWORD: ${{secrets.VITE_FB_ANON_PASSWORD}}
+    
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                node-version: 20
+            - name: Setup SSH Key
+              run: |
+                mkdir -p ~/.ssh
+                echo "start copy key"
+                echo "$SSH_KEY" > ~/.ssh/id_rsa
+                echo "done copy setup key"
+                chmod 600 ~/.ssh/id_rsa
+                ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+            - name: Install Dependencies
+              run: npm ci
+            - name: Build Vite app
+              run: npx vite build
+            - name: Clear remote temp build folder
+              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "mkdir -p ~/svrms_test_deploy/ && sudo rm -rf ~/svrms_test_deploy/*"
+            - name: Copy new build to remote temp build folder
+              run: scp -i ~/.ssh/id_rsa -r dist/* $SSH_USER@$SSH_HOST:/home/$SSH_USER/svrms_test_deploy/
+            - name: Deploy to production directory
+              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "sudo rm -rf /var/www/test-svrms/* && sudo mkdir -p /var/www/test-svrms && sudo cp -r ~/svrms_test_deploy/* /var/www/test-svrms"
