@@ -25,7 +25,6 @@ export default function useRequests(onRequestChange?: (type: 'added' | 'modified
                 await waitForPendingWrites(firebaseFirestore)
                 // Track changes for notifications (skip initial load)
                 if (!isInitialLoad.current && onRequestChange) {
-                    console.log("Request changes detected:", snapshot.docChanges());
                     snapshot.docChanges().forEach((change) => {
                         const request = { ...change.doc.data() as Request, id: change.doc.id };
                         onRequestChange(change.type, request);

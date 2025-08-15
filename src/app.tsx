@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import notif from "./assets/notif-request.mp3";
+import notifReqSound from "./assets/notif-request.mp3";
+import notifTripSound from "./assets/notif-trip.mp3"
 import ApproveModal from './components/ApproveModal';
 import Loader from './components/Loader';
 import LoginModal from './components/LoginModal';
@@ -33,7 +34,7 @@ export function App() {
     return savedMode ? JSON.parse(savedMode) : false;
   });
   const { requests, addRequest } = useRequests(handleRequestChange);
-  const { trips } = useTrips();
+  const { trips } = useTrips(handleTripChange);
   const { user, isAdmin, signOutUser } = useAuth();
 
   // Login modal state
@@ -80,10 +81,23 @@ export function App() {
     }
   };
   // Function to add a new notification
-  const addNotification = (type: Notification['type'], details: string) => {
+  const addNotification = (type: Notification['type'], details: string, sound = 'request') => {
+    console.log(sound)
     const timestamp = new Date().toLocaleTimeString();
     setNotifications(prev => [{ id: Date.now().toString(), type, details, timestamp }, ...prev].slice(0, 5)); // Keep last 5 notifications
-    new Audio(notif).play();
+    switch (sound) {
+      case 'request':
+        console.log("Playing request notification sound");
+        new Audio(notifReqSound).play();
+        break;
+      case 'trip':
+        console.log("Playing trip notification sound");
+        new Audio(notifTripSound).play();
+        break;
+      default:
+        new Audio(notifReqSound).play();
+        break;
+    }
   };
   // Function to handle request form submission
   const handleSubmitRequest = async (requestData: Request) => {
@@ -287,7 +301,6 @@ export function App() {
       console.error('Error updating trip:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessage(`Error updating trip: ${errorMessage}`);
-      // addNotification('update attempt', `Failed to update trip ${currentEditTripData.tripCode}. Error: ${errorMessage}`);
     } finally {
       setUpdatingTripId(null);
     }
@@ -309,6 +322,21 @@ export function App() {
       setMessage(`Error updating trip status: ${errorMessage}`);
     } finally {
       setUpdatingTripId(null);
+    }
+  };
+  // Handle trip changes
+  function handleTripChange(type: 'added' | 'modified' | 'removed', trip: Trip) {
+    switch (type) {
+      case 'added':
+        addNotification('added', `New trip created: ${trip.tripCode}`, 'trip');
+        break;
+      case 'modified':
+        addNotification('updated', `Trip updated: ${trip.tripCode}`, 'trip');
+        break;
+      // No need to notify for deletes
+      // case 'removed':
+      //   addNotification('deleted', `Request deleted: ${request.requesterName} - ${request.requestedVehicle}`);
+      //   break;
     }
   };
 
