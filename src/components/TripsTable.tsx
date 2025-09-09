@@ -40,7 +40,7 @@ export default function TripsTable({
 
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
+
         return trips.filter(trip => {
             const tripDate = trip.dateTime ? new Date(trip.dateTime) : new Date(0);
             const tripDay = new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate());
@@ -64,10 +64,10 @@ export default function TripsTable({
 
     const getFilterCount = (filter: typeof dateFilter) => {
         if (filter === 'all') return trips.length;
-        
+
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
+
         return trips.filter(trip => {
             const tripDate = trip.dateTime ? new Date(trip.dateTime) : new Date(0);
             const tripDay = new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate());
@@ -104,22 +104,21 @@ export default function TripsTable({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                     <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>List of Approved Trips</h2>
-                    
+
                     {/* Date Filter Buttons */}
                     <div className="flex flex-wrap gap-2">
                         {(['all', 'daily', 'weekly', 'monthly'] as const).map((filter) => (
                             <button
                                 key={filter}
                                 onClick={() => setDateFilter(filter)}
-                                className={`px-3 py-1 rounded-md text-xs font-medium transition duration-150 ease-in-out ${
-                                    dateFilter === filter
-                                        ? darkMode
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-blue-500 text-white'
-                                        : darkMode
-                                            ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                } cursor-pointer`}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition duration-150 ease-in-out ${dateFilter === filter
+                                    ? darkMode
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-blue-500 text-white'
+                                    : darkMode
+                                        ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    } cursor-pointer`}
                             >
                                 {filter === 'all' && 'All'}
                                 {filter === 'daily' && 'Today'}
@@ -195,6 +194,15 @@ export default function TripsTable({
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Driver name (optional)"
                                                     />
+                                                    {/* ETA */}
+                                                    <input
+                                                        type="time"
+                                                        name="estimatedArrival"
+                                                        value={currentEditTripData?.estimatedArrival ? new Date(currentEditTripData.estimatedArrival).toTimeString().slice(0, 5) : ''}
+                                                        onChange={handleTripEditChange}
+                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        placeholder="ETA"
+                                                    />
                                                     {/* Mobile: Show personnel inline on mobile when editing */}
                                                     <div className="sm:hidden">
                                                         <input
@@ -213,7 +221,7 @@ export default function TripsTable({
                                                     <div className="text-base font-bold">{trip.tripCode}</div>
                                                     {/* Date/Time - Combined in one line, shorter on mobile */}
                                                     <div className="text-xs font-medium">
-                                                        {trip.dateTime ?
+                                                        🕐 {trip.dateTime ?
                                                             new Date(trip.dateTime).toLocaleString([], {
                                                                 month: '2-digit',
                                                                 day: '2-digit',
@@ -223,17 +231,23 @@ export default function TripsTable({
                                                             `${getCurrentDate()} ${getCurrentTime()}`
                                                         }
                                                     </div>
+                                                    {/* ETA */}
+                                                    {trip.estimatedArrival && (
+                                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                            ETA: {new Date(trip.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    )}
                                                     {/* Service Vehicle */}
                                                     <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
-                                                        {trip.vehicleAssigned}
+                                                        🛻 {trip.vehicleAssigned}
                                                     </div>
                                                     {/* Driver */}
                                                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                        {trip.driverName || 'No driver'}
+                                                        👤 {trip.driverName || 'No driver'}
                                                     </div>
                                                     {/* Mobile: Show personnel inline on mobile */}
                                                     <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
-                                                        👥 {trip.personnel?.join(', ') || 'N/A'}
+                                                        {trip.personnel?.join(', ') || 'N/A'}
                                                     </div>
                                                 </div>
                                             )}
@@ -258,7 +272,7 @@ export default function TripsTable({
                                         </td>
 
                                         {/* Purpose - Always visible but condensed on mobile */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-xs ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                             {editingTripId === trip.id ? (
                                                 <div className="space-y-2">
                                                     <input

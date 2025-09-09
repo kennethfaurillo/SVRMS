@@ -100,6 +100,16 @@ export default function RequestsTable({
             }
         }).length;
     };
+
+    // Define pastel colors for alternating requests
+    const pastelColors = [
+        { bg: 'bg-blue-50', darkBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-700' },
+        { bg: 'bg-green-50', darkBg: 'bg-green-900/20', border: 'border-green-200', darkBorder: 'border-green-700' },
+        { bg: 'bg-purple-50', darkBg: 'bg-purple-900/20', border: 'border-purple-200', darkBorder: 'border-purple-700' },
+        { bg: 'bg-yellow-50', darkBg: 'bg-yellow-900/20', border: 'border-yellow-200', darkBorder: 'border-yellow-700' },
+        { bg: 'bg-pink-50', darkBg: 'bg-pink-900/20', border: 'border-pink-200', darkBorder: 'border-pink-700' },
+        { bg: 'bg-indigo-50', darkBg: 'bg-indigo-900/20', border: 'border-indigo-200', darkBorder: 'border-indigo-700' }
+    ];
     // Function to initiate request editing
     const handleUpdateClick = (request: Request) => {
         if (request?.id) {
@@ -167,6 +177,7 @@ export default function RequestsTable({
                 purpose: requestEditData.purpose,
                 destination: requestEditData.destination,
                 requestedDateTime: requestEditData.requestedDateTime,
+                estimatedArrival: requestEditData.estimatedArrival,
                 status: requestEditData.status,
                 remarks: requestEditData.remarks,
                 completedDate: null,
@@ -215,15 +226,20 @@ export default function RequestsTable({
                         ))}
                     </div>
                 </div>
-                <button
-                    onClick={() => exportToCsv(requests)}
-                    className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out cursor-pointer"
-                >
-                    Export to CSV
-                </button>
+                <div className="flex items-center gap-3">
+                    <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
+                    </div>
+                    <button
+                        onClick={() => exportToCsv(requests)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md text-xs font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out cursor-pointer"
+                    >
+                        Export CSV
+                    </button>
+                </div>
             </div>
             {filteredRequests.length === 0 ? (
-                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center`}>
+                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center py-8`}>
                     {dateFilter === 'all' ? 'No requests submitted yet.' : `No requests found for ${dateFilter} view.`}
                 </p>
             ) : (
@@ -245,10 +261,13 @@ export default function RequestsTable({
                             </tr>
                         </thead>
                         <tbody >
-                            {sortedRequests.map((request: Request, index) => (
-                                <tr key={request.id} className={`${index % 2 === 0 ? (darkMode ? 'bg-gray-800' : 'bg-white') : (darkMode ? 'bg-gray-700' : 'bg-gray-50')} ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}>
+                            {sortedRequests.map((request: Request, requestIndex) => {
+                                const colorScheme = pastelColors[requestIndex % pastelColors.length];
+
+                                return (
+                                <tr key={request.id} className={`${darkMode ? colorScheme.darkBg : colorScheme.bg} border-l-4 ${darkMode ? colorScheme.darkBorder : colorScheme.border} hover:opacity-80 transition-opacity duration-200`}>
                                     {/* Request Details: Date/Time, Service Vehicle, Driver - Always visible */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                                         {editingRequestId === request.id ? (
                                             <div className="space-y-2">
                                                 {/* Date/Time - Combined */}
@@ -258,6 +277,15 @@ export default function RequestsTable({
                                                     value={requestEditData?.requestedDateTime || ''}
                                                     onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                />
+                                                {/* ETA */}
+                                                <input
+                                                    type="time"
+                                                    name="estimatedArrival"
+                                                    value={requestEditData?.estimatedArrival ? new Date(requestEditData.estimatedArrival).toTimeString().slice(0, 5) : ''}
+                                                    onChange={handleRequestEditDataChange}
+                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                    placeholder="ETA"
                                                 />
                                                 {/* Service Vehicle */}
                                                 <select
@@ -318,10 +346,10 @@ export default function RequestsTable({
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="text-xs space-y-1">
-                                                {/* Date/Time - Combined in one line */}
-                                                <div className="font-medium">
-                                                    {request.requestedDateTime ?
+                                            <div className="space-y-1">
+                                                {/* Date/Time - Combined in one line, shorter on mobile */}
+                                                <div className="text-xs sm:text-sm font-medium">
+                                                    🕐 {request.requestedDateTime ?
                                                         new Date(request.requestedDateTime).toLocaleString([], {
                                                             month: '2-digit',
                                                             day: '2-digit',
@@ -331,25 +359,30 @@ export default function RequestsTable({
                                                         `${getCurrentDate()} ${getCurrentTime()}`
                                                     }
                                                 </div>
+                                                {/* ETA - if present */}
+                                                {request.estimatedArrival && (
+                                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                        ETA: {new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    </div>
+                                                )}
                                                 {/* Service Vehicle */}
-                                                <div className="font-semibold text-blue-600 dark:text-blue-400">
-                                                    {request.requestedVehicle}
+                                                <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                                    🛻 {request.requestedVehicle}
                                                 </div>
                                                 {/* Driver */}
-                                                <div className="text-gray-600 dark:text-gray-400">
-                                                    {request.isDriverRequested === 'Yes' ? (request.delegatedDriverName || 'Driver needed') : 'No driver'}
+                                                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                    👤 {request.isDriverRequested === 'Yes' ? (request.delegatedDriverName || 'Driver needed') : 'No driver'}
                                                 </div>
                                                 {/* Mobile: Show personnel and department inline on mobile */}
-                                                <div className="sm:hidden text-gray-600 dark:text-gray-400">
-                                                    <div>{request.requesterName}</div>
-                                                    <div className="text-xs">{request.department}</div>
+                                                <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
+                                                    {request.requesterName} - {request.department}
                                                 </div>
                                             </div>
                                         )}
                                     </td>
 
                                     {/* Requesting Personnel - Hidden on mobile */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden sm:table-cell">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
                                         {editingRequestId === request.id ? (
                                             <input
                                                 type="text"
@@ -359,12 +392,14 @@ export default function RequestsTable({
                                                 className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                             />
                                         ) : (
-                                            request.requesterName
+                                            <div className="text-sm">
+                                                {request.requesterName}
+                                            </div>
                                         )}
                                     </td>
 
                                     {/* Department - Hidden on mobile/tablet */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden md:table-cell">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
                                         {editingRequestId === request.id ? (
                                             <select
                                                 name="department"
@@ -378,12 +413,14 @@ export default function RequestsTable({
                                                 ))}
                                             </select>
                                         ) : (
-                                            request.department
+                                            <div className="text-sm">
+                                                {request.department}
+                                            </div>
                                         )}
                                     </td>
 
                                     {/* Purpose of Request - Always visible but truncated on mobile */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                         {editingRequestId === request.id ? (
                                             <div className="space-y-2">
                                                 <input
@@ -403,27 +440,43 @@ export default function RequestsTable({
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Destination"
                                                     />
+                                                    <input
+                                                        type="time"
+                                                        name="estimatedArrival"
+                                                        value={requestEditData?.estimatedArrival ? new Date(requestEditData.estimatedArrival).toTimeString().slice(0, 5) : ''}
+                                                        onChange={handleRequestEditDataChange}
+                                                        className={`w-full border rounded-md px-2 py-1 text-xs mt-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        placeholder="ETA"
+                                                    />
                                                 </div>
                                             </div>
                                         ) : (
                                             <div>
-                                                <div className={editingRequestId === request.id ? '' : 'sm:whitespace-normal'}>
-                                                    {request.purpose}
-                                                </div>
-                                                {/* Mobile: Show destination inline */}
-                                                <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    </svg>
-                                                    {request.destination}
+                                                <div className="break-words">
+                                                    <div className="sm:whitespace-normal">
+                                                        {request.purpose}
+                                                    </div>
+                                                    {/* Mobile: Show destination inline */}
+                                                    <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                        {request.destination}
+                                                        {request.estimatedArrival && (
+                                                            <>
+                                                                <span className="mx-1">•</span>
+                                                                <span>ETA: {new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
                                     </td>
 
                                     {/* Destination - Hidden on mobile/tablet */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden lg:table-cell">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
                                         {editingRequestId === request.id ? (
                                             <input
                                                 type="text"
@@ -433,7 +486,9 @@ export default function RequestsTable({
                                                 className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                             />
                                         ) : (
-                                            request.destination
+                                            <div className="text-sm">
+                                                {request.destination}
+                                            </div>
                                         )}
                                     </td>
 
@@ -481,7 +536,7 @@ export default function RequestsTable({
                                                 <div className="xl:hidden text-xs text-gray-600 dark:text-gray-400 mt-1">
                                                     {request.remarks && (
                                                         <div>
-                                                            💬 {request.remarks}
+                                                            {request.remarks}
                                                             {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
                                                                 <span className="ml-1">({request.completedDate})</span>
                                                             )}
@@ -493,7 +548,7 @@ export default function RequestsTable({
                                     </td>
 
                                     {/* Remarks - Hidden on mobile */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden xl:table-cell">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-48 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden xl:table-cell`}>
                                         {editingRequestId === request.id ? (
                                             <>
                                                 <textarea
@@ -514,17 +569,17 @@ export default function RequestsTable({
                                                 )}
                                             </>
                                         ) : (
-                                            <>
+                                            <div className="text-sm">
                                                 {request.remarks}
                                                 {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
                                                     <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({request.completedDate})</span>
                                                 )}
-                                            </>
+                                            </div>
                                         )}
                                     </td>
 
                                     {/* Timestamp - Hidden on mobile/tablet */}
-                                    <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden lg:table-cell">
+                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
                                         {!request.timestamp ? (
                                             <div className="text-xs space-y-1">
                                                 <div className="text-gray-500">N/A</div>
@@ -630,7 +685,8 @@ export default function RequestsTable({
                                         </td>
                                     }
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

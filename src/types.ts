@@ -20,6 +20,7 @@ export type Request = {
   purpose: string;
   destination: string;
   requestedDateTime: string; // Combined requested date and time in ISO format
+  estimatedArrival?: string; // Estimated time of arrival in ISO format
   status: SVRStatus;
   remarks?: string; // Optional remarks by requester
   completedDate?: string | null; // Optional, can be null if not completed
@@ -33,6 +34,7 @@ export type Trip = {
   id: string; // Firebase auto-generated ID
   tripCode: string; // User-defined trip code (e.g., "250806-0001")
   dateTime: string; // Date and time of the trip in ISO format
+  estimatedArrival?: string; // Estimated time of arrival in ISO format
   vehicleAssigned: string | null; // Vehicle assigned for the trip
   driverName?: string | null; // Optional, can be null if no driver assigned
   personnel: string[];

@@ -163,6 +163,14 @@ export function App() {
       } else if (name === 'purpose') {
         // Split by comma and trim whitespace
         newData.purpose = value.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+      } else if (name === 'estimatedArrival') {
+        // Convert time input to ISO string with current date
+        if (value) {
+          const currentDate = newData.dateTime ? new Date(newData.dateTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          newData.estimatedArrival = new Date(`${currentDate}T${value}`).toISOString();
+        } else {
+          newData.estimatedArrival = undefined;
+        }
       } else {
         (newData as any)[name] = value;
       }
@@ -179,6 +187,7 @@ export function App() {
     try {
       const dataToUpdate = {
         dateTime: currentEditTripData.dateTime,
+        estimatedArrival: currentEditTripData.estimatedArrival,
         vehicleAssigned: currentEditTripData.vehicleAssigned,
         driverName: currentEditTripData.driverName || null,
         personnel: currentEditTripData.personnel,
@@ -267,9 +276,10 @@ export function App() {
           id: '', // This will be set by Firebase
           tripCode,
           dateTime: tripData?.dateTime || requestToApprove.requestedDateTime,
+          estimatedArrival: requestToApprove.estimatedArrival,
           vehicleAssigned: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
           driverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
-          personnel: [requestToApprove.requesterName],
+          personnel: [requestToApprove.requesterName + '-' + requestToApprove.department],
           purpose: [requestToApprove.purpose],
           destination: requestToApprove.destination,
           requestIds: [requestToApprove.id],
@@ -329,6 +339,7 @@ export function App() {
             purpose: updatedPurpose,
             // Keep the existing dateTime, vehicleAssigned, and driverName unless they're not set
             dateTime: existingTrip.dateTime || requestToApprove.requestedDateTime,
+            estimatedArrival: existingTrip.estimatedArrival || requestToApprove.estimatedArrival,
             vehicleAssigned: existingTrip.vehicleAssigned || requestToApprove.requestedVehicle,
             driverName: existingTrip.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
             // Merge destinations instead of replacing
@@ -355,7 +366,7 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen font-sans flex ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
+    <div className={`min-h-screen font-sans flex flex-col sm:flex-row ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
       <Sidebar />
       <main class={`flex place-content-center w-full p-2 sm:p-4`}>
         {/* <div className={`w-full max-w-[95%] sm:max-w-6xl shadow-xl rounded-xl p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}> */}
@@ -476,7 +487,6 @@ export function App() {
                 <RequestForm
                   darkMode={darkMode}
                   onSubmit={handleSubmitRequest}
-                  onToggle={() => setShowRequestForm(false)}
                 />
               )}</Route>
             <Route path='/requests'>

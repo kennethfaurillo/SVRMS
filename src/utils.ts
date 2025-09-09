@@ -32,7 +32,7 @@ export const exportToCsv = (requests: Request[]): Result => {
   const headers = [
     "Timestamp", "Service Vehicle", "Requesting Personnel", "Department",
     "Driver Requested", "Delegated Driver Name", "Purpose", "Destination",
-    "Requested Date/Time", "Status", "Remarks"
+    "Requested Date/Time", "ETA", "Status", "Remarks"
   ];
 
   const csvRows = [];
@@ -49,6 +49,10 @@ export const exportToCsv = (requests: Request[]): Result => {
     const requestedDateTime = request.requestedDateTime ?
       new Date(request.requestedDateTime).toLocaleString() : 'N/A';
 
+    // Format the ETA from ISO string
+    const estimatedArrival = request.estimatedArrival ?
+      new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+
     const row = [
       `"${formattedTimestamp}"`,
       `"${request.requestedVehicle}"`,
@@ -59,6 +63,7 @@ export const exportToCsv = (requests: Request[]): Result => {
       `"${request.purpose}"`,
       `"${request.destination}"`,
       `"${requestedDateTime}"`,
+      `"${estimatedArrival}"`,
       `"${request.status}"`,
       `"${request.remarks || ''}"`
     ];
