@@ -38,8 +38,8 @@ jobs:
             - name: Build Vite app
               run: npx vite build
             - name: Clear remote temp build folder
-              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "mkdir -p ~/svrms_test_deploy/ && sudo rm -rf ~/svrms_test_deploy/*"
+              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "mkdir -p ~/svrms_deploy/ && sudo rm -rf ~/svrms_deploy/*"
             - name: Copy new build to remote temp build folder
-              run: scp -i ~/.ssh/id_rsa -r dist/* $SSH_USER@$SSH_HOST:/home/$SSH_USER/svrms_test_deploy/
-            - name: Deploy to production directory
-              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "sudo rm -rf /var/www/test-svrms/* && sudo mkdir -p /var/www/test-svrms && sudo cp -r ~/svrms_test_deploy/* /var/www/test-svrms"
+              run: scp -i ~/.ssh/id_rsa -r dist/* $SSH_USER@$SSH_HOST:/home/$SSH_USER/svrms_deploy/
+            - name: Deploy to staging/test directory
+              run: ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "sudo rm -rf /var/www/test-svrms/* && sudo mkdir -p /var/www/test-svrms && sudo cp -r ~/svrms_deploy/* /var/www/test-svrms"
