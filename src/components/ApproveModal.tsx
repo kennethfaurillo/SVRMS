@@ -1,26 +1,28 @@
 import { useState, useEffect } from "preact/hooks";
-import type { Request, Trip, ServiceVehicle } from "../types";
-import { SERVICE_VEHICLES } from "../constants";
+import type { Request, Trip } from "../types";
 import useTrips from "../hooks/useTrips";
+import { useConstants } from "../hooks/useConstants";
+import Dialog from "./Dialog";
 
 interface ApproveModalProps {
     darkMode: boolean;
-    isOpen: boolean;
+    open: boolean;
     onClose: () => void;
     onSubmit: (tripCode: string, isNewTrip: boolean, tripData?: Partial<Trip>) => Promise<void>;
     request: Request | null;
     existingTrips: Trip[];
 }
 
-export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, request, existingTrips }: ApproveModalProps) {
+export default function ApproveModal({ darkMode, open, onClose, onSubmit, request, existingTrips }: ApproveModalProps) {
     const [tripMode, setTripMode] = useState<'new' | 'existing'>('new');
     const [selectedTripCode, setSelectedTripCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const { serviceVehiclesString: serviceVehicles } = useConstants();
 
     // Editable trip data for new trips
     const [editableTripData, setEditableTripData] = useState({
         dateTime: '',
-        vehicleAssigned: '' as ServiceVehicle | '',
+        vehicleAssigned: '',
         driverName: ''
     });
 
@@ -32,7 +34,7 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
         if (request) {
             setEditableTripData({
                 dateTime: request.requestedDateTime,
-                vehicleAssigned: request.requestedVehicle,
+                vehicleAssigned: request.requestedVehicle || '',
                 driverName: request.delegatedDriverName || ''
             });
         }
@@ -59,7 +61,7 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
         try {
             await onSubmit(tripCode, tripMode === 'new', tripMode === 'new' ? {
                 dateTime: editableTripData.dateTime,
-                vehicleAssigned: editableTripData.vehicleAssigned as ServiceVehicle,
+                vehicleAssigned: editableTripData.vehicleAssigned,
                 driverName: editableTripData.driverName || undefined
             } : undefined);
             onClose();
@@ -79,16 +81,16 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
         onClose();
     };
 
-    if (!isOpen || !request) return null;
+    if (!open || !request) return null;
 
     return (
-        <div className={`fixed inset-0 flex items-center justify-center z-50 ${darkMode ? 'bg-gray-900 bg-opacity-50' : 'bg-gray-600 bg-opacity-50'}`}>
-            <div className={`${darkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'} p-6 rounded-lg shadow-xl w-full max-w-md mx-4`}>
-                <div className="flex justify-between items-center mb-6">
+        <Dialog open={open} onClose={onClose}>
+            <div className={`${darkMode ? 'bg-gray-700' : 'bg-white'} min-w-128 rounded-md p-6`}>
+                <div className={`flex justify-between`}>
                     <h2 className="text-2xl font-bold">Approve Request</h2>
                     <button
                         onClick={handleClose}
-                        className={`text-gray-500 hover:text-gray-700 ${darkMode ? 'hover:text-gray-300' : ''}`}
+                        className={`text-gray-500 hover:text-gray-700 ${darkMode ? 'hover:text-gray-300' : ''} cursor-pointer`}
                         disabled={isLoading}
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,10 +98,9 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                         </svg>
                     </button>
                 </div>
-
                 {/* Request Details */}
-                <div className={`mb-6 p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                    <h3 className="font-semibold mb-2">Request Details:</h3>
+                <div className={`my-2 px-4 py-2 rounded-lg  ${darkMode ? 'bg-gray-600 ' : 'bg-blue-50 border border-blue-200'}`}>
+                    <h3 className={`font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Request Details:</h3>
                     <p className="text-sm"><strong>Vehicle:</strong> {request.requestedVehicle}</p>
                     <p className="text-sm"><strong>Date & Time:</strong> {new Date(request.requestedDateTime).toLocaleString()}</p>
                     <p className="text-sm"><strong>Requester:</strong> {request.requesterName}</p>
@@ -110,7 +111,6 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                         <p className="text-sm"><strong>Requested Driver:</strong> {request.delegatedDriverName}</p>
                     )}
                 </div>
-
                 <form onSubmit={handleSubmit}>
                     {/* Trip Mode Selection */}
                     <div className="mb-4">
@@ -226,14 +226,14 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                                             value={editableTripData.vehicleAssigned}
                                             onChange={(e) => setEditableTripData(prev => ({
                                                 ...prev,
-                                                vehicleAssigned: (e.target as HTMLSelectElement).value as ServiceVehicle
+                                                vehicleAssigned: (e.target as HTMLSelectElement).value
                                             }))}
                                             className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 ${darkMode ? 'bg-gray-700 text-white border-gray-600' : 'border-gray-300'}`}
                                             disabled={isLoading}
                                             required
                                         >
                                             <option value="">-- Select Vehicle --</option>
-                                            {SERVICE_VEHICLES.map((vehicle) => (
+                                            {serviceVehicles.map((vehicle) => (
                                                 <option key={vehicle} value={vehicle}>
                                                     {vehicle}
                                                 </option>
@@ -358,6 +358,6 @@ export default function ApproveModal({ darkMode, isOpen, onClose, onSubmit, requ
                     </div>
                 </form>
             </div>
-        </div>
-    );
+        </Dialog>
+    )
 }

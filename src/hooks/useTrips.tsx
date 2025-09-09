@@ -1,5 +1,5 @@
 import { collection, onSnapshot, query, waitForPendingWrites } from "firebase/firestore";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
 import { firebaseAuth, firebaseFirestore } from "../firebase";
 import type { Trip } from "../types";
@@ -17,32 +17,30 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
         return generateTripCode(trips);
     }, [trips]);
     const { user } = useAuth();
-    const isInitialLoad = useRef(true);
 
     useEffect(() => {
+        let isInitialLoad = true;
         if (db && auth && user) {
             const tripsCollectionRef = collection(db, `trips`);
             const q = query(tripsCollectionRef);
 
             const unsubscribe = onSnapshot(q, async (snapshot) => {
                 await waitForPendingWrites(firebaseFirestore)
-                if (!isInitialLoad.current && onTripChange) {
+                if (!isInitialLoad && onTripChange) {
                     snapshot.docChanges().forEach((change) => {
                         const trip = { ...change.doc.data() as Trip, id: change.doc.id };
                         onTripChange(change.type, trip);
                     });
                 }
-                // create a new type for fetched trips
                 const fetchedTrips: Trip[] = snapshot.docs.map(doc => ({
                     ...doc.data() as Trip,
                     id: doc.id
                 }));
 
-                // Sort trips by ID (most recent first)
-                fetchedTrips.sort((a, b) => b.id.localeCompare(a.id));
+                // Sort trips by tripCode (most recent first)
+                fetchedTrips.sort((a, b) => b.tripCode.localeCompare(a.tripCode));
                 setTrips(fetchedTrips);
-                isInitialLoad.current = false;
-                // console.log("Trips fetched successfully:", fetchedTrips);
+                isInitialLoad = false;
             }, (error) => {
                 console.error("Error fetching trips:", error);
             });

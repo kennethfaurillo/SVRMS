@@ -5,7 +5,8 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   server: {
-    open: true
+    host:'0.0.0.0',
+    open: true,
   },
   plugins: [
     preact(),

@@ -11,8 +11,10 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
     "firebase": "^12.0.0",
+    "lucide-react": "^0.542.0",
     "preact": "^10.26.9",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "wouter-preact": "^3.7.1"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",

@@ -1,5 +1,5 @@
 import { addDoc, collection, onSnapshot, query, waitForPendingWrites } from "firebase/firestore";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
 import { firebaseAuth, firebaseFirestore } from "../firebase";
 import type { Request, Result, SVRStatus } from "../types";
@@ -8,29 +8,27 @@ import type { Request, Result, SVRStatus } from "../types";
  * Custom hook to manage requests in the application.
  * Provides functionality to add, update, and delete requests in Firestore.
  */
-export default function useRequests(onRequestChange?: (type: 'added' | 'modified' | 'removed', request: Request) => void) {
+export default function useRequests(onRequestsChange?: (type: 'added' | 'modified' | 'removed', request: Request) => void) {
     const db = firebaseFirestore
     const auth = firebaseAuth
 
     const [requests, setRequests] = useState<Request[]>([]);
     const { user } = useAuth();
-    const isInitialLoad = useRef(true);
 
     useEffect(() => {
+        let isInitialLoad = true
         if (db && auth && user) {
             const requestsCollectionRef = collection(db, `requests`);
             const q = query(requestsCollectionRef);
-
             const unsubscribe = onSnapshot(q, async (snapshot) => {
                 await waitForPendingWrites(firebaseFirestore)
                 // Track changes for notifications (skip initial load)
-                if (!isInitialLoad.current && onRequestChange) {
+                if (!isInitialLoad && onRequestsChange) {
                     snapshot.docChanges().forEach((change) => {
                         const request = { ...change.doc.data() as Request, id: change.doc.id };
-                        onRequestChange(change.type, request);
+                        onRequestsChange(change.type, request);
                     });
                 }
-                // create a  new type for fetched requests
                 const fetchedRequests: Request[] = snapshot.docs.map(doc => ({
                     ...doc.data() as Request,
                     id: doc.id
@@ -51,11 +49,9 @@ export default function useRequests(onRequestChange?: (type: 'added' | 'modified
                     }
                 });
                 setRequests(fetchedRequests);
-                isInitialLoad.current = false;
-                // console.log("Requests fetched successfully:", fetchedRequests);
+                isInitialLoad = false;
             }, (error) => {
                 console.error("Error fetching requests:", error);
-                // setMessage(`Error fetching requests: ${error.message}`);
             });
             return () => unsubscribe(); // Clean up the listener on unmount
         }

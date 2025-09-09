@@ -1,7 +1,8 @@
+import { useMemo, useState } from "preact/hooks";
 import type { Trip } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
-import { SERVICE_VEHICLES } from "../constants";
 import { useAuth } from "../contexts/AuthContext";
+import { useConstants } from "../hooks/useConstants";
 
 interface TripsTableProps {
     trips: Trip[];
@@ -31,6 +32,62 @@ export default function TripsTable({
     handleMarkTripAsFulfilled
 }: TripsTableProps) {
     const { isAdmin } = useAuth();
+    const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
+    const { serviceVehiclesString: serviceVehicles } = useConstants();
+
+    const filteredTrips = useMemo(() => {
+        if (dateFilter === 'all') return trips;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        return trips.filter(trip => {
+            const tripDate = trip.dateTime ? new Date(trip.dateTime) : new Date(0);
+            const tripDay = new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate());
+
+            switch (dateFilter) {
+                case 'daily':
+                    return tripDay.getTime() === today.getTime();
+                case 'weekly':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay()); // Start of current week (Sunday)
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6); // End of current week (Saturday)
+                    return tripDay >= weekStart && tripDay <= weekEnd;
+                case 'monthly':
+                    return tripDate.getMonth() === now.getMonth() && tripDate.getFullYear() === now.getFullYear();
+                default:
+                    return true;
+            }
+        });
+    }, [trips, dateFilter]);
+
+    const getFilterCount = (filter: typeof dateFilter) => {
+        if (filter === 'all') return trips.length;
+        
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        return trips.filter(trip => {
+            const tripDate = trip.dateTime ? new Date(trip.dateTime) : new Date(0);
+            const tripDay = new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate());
+
+            switch (filter) {
+                case 'daily':
+                    return tripDay.getTime() === today.getTime();
+                case 'weekly':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6);
+                    return tripDay >= weekStart && tripDay <= weekEnd;
+                case 'monthly':
+                    return tripDate.getMonth() === now.getMonth() && tripDate.getFullYear() === now.getFullYear();
+                default:
+                    return true;
+            }
+        }).length;
+    };
 
     // Define pastel colors for alternating trips
     const pastelColors = [
@@ -45,16 +102,44 @@ export default function TripsTable({
     return (
         <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 sm:p-6 rounded-lg shadow-inner mt-8`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
-                <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>Approved Trips</h2>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                    <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>List of Approved Trips</h2>
+                    
+                    {/* Date Filter Buttons */}
+                    <div className="flex flex-wrap gap-2">
+                        {(['all', 'daily', 'weekly', 'monthly'] as const).map((filter) => (
+                            <button
+                                key={filter}
+                                onClick={() => setDateFilter(filter)}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition duration-150 ease-in-out ${
+                                    dateFilter === filter
+                                        ? darkMode
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-blue-500 text-white'
+                                        : darkMode
+                                            ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                } cursor-pointer`}
+                            >
+                                {filter === 'all' && 'All'}
+                                {filter === 'daily' && 'Today'}
+                                {filter === 'weekly' && 'This Week'}
+                                {filter === 'monthly' && 'This Month'} ({getFilterCount(filter)})
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {trips.length} trip{trips.length !== 1 ? 's' : ''}
+                    {filteredTrips.length} trip{filteredTrips.length !== 1 ? 's' : ''}
                 </div>
             </div>
 
-            {trips.length === 0 ? (
-                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center py-8`}>No approved trips yet.</p>
+            {filteredTrips.length === 0 ? (
+                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center py-8`}>
+                    {dateFilter === 'all' ? 'No approved trips yet.' : `No trips found for ${dateFilter} view.`}
+                </p>
             ) : (
-                <div className="overflow-x-auto max-h-64">
+                <div className="h-[calc(100vh-375px)] overflow-y-scroll overflow-x-hidden">
                     <table className="min-w-full border-collapse">
                         <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
                             <tr>
@@ -67,7 +152,7 @@ export default function TripsTable({
                             </tr>
                         </thead>
                         <tbody>
-                            {trips.map((trip, tripIndex) => {
+                            {filteredTrips.map((trip, tripIndex) => {
                                 const colorScheme = pastelColors[tripIndex % pastelColors.length];
 
                                 return (
@@ -97,7 +182,7 @@ export default function TripsTable({
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     >
                                                         <option value="">-- Select Vehicle --</option>
-                                                        {SERVICE_VEHICLES.map((option) => (
+                                                        {serviceVehicles.map((option) => (
                                                             <option key={option} value={option}>{option}</option>
                                                         ))}
                                                     </select>

@@ -1,40 +1,62 @@
-import { useMemo } from "preact/hooks";
-import { DEPARTMENTS, REQUEST_STATUSES, SERVICE_VEHICLES } from "../constants";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { useMemo, useState } from "preact/hooks";
+import { REQUEST_STATUSES } from "../constants";
 import { useAuth } from "../contexts/AuthContext";
-import type { Request } from "../types";
-import { getCurrentDate, getCurrentTime } from "../utils";
+import { firebaseFirestore } from "../firebase";
+import { useConstants } from "../hooks/useConstants";
+import useRequests from "../hooks/useRequests";
+import type { Request, RequestKey } from "../types";
+import { exportToCsv, getCurrentDate, getCurrentTime } from "../utils";
 
 interface RequestsTableProps {
-    requests: Request[];
     darkMode: boolean;
-    editingRequestId: string | null;
-    currentEditData: Request | null;
-    updatingRequestId: string | null;
-    handleEditChange: (e: any) => void;
-    saveEditedRequest: (requestId: string) => Promise<void>;
-    cancelEditing: () => void;
-    handleUpdateClick: (request: Request) => void;
-    handleDeleteClick: (request: Request) => void;
-    handleExportClick: () => void;
     handleApproveClick: (request: Request) => void;
 }
 
 export default function RequestsTable({
-    requests,
     darkMode,
-    editingRequestId,
-    currentEditData,
-    updatingRequestId,
-    handleEditChange,
-    saveEditedRequest,
-    cancelEditing,
-    handleUpdateClick,
-    handleDeleteClick,
-    handleExportClick,
     handleApproveClick
 }: RequestsTableProps) {
+    const db = firebaseFirestore;
+    // Request ID that is currently being edited
+    const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+    // Data of request being edited
+    const [requestEditData, setRequestEditData] = useState<Request | null>(null);
+    // Request ID that is currently updating/processing
+    const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
+    const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const { isAdmin } = useAuth();
-    const sortedRequests = useMemo(() => [...requests].sort((a, b) => {
+    const { requests } = useRequests();
+    const { serviceVehicles, departments } = useConstants();
+
+    const filteredRequests = useMemo(() => {
+        if (dateFilter === 'all') return requests;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        return requests.filter(request => {
+            const requestDate = request.requestedDateTime ? new Date(request.requestedDateTime) : new Date(0);
+            const requestDay = new Date(requestDate.getFullYear(), requestDate.getMonth(), requestDate.getDate());
+
+            switch (dateFilter) {
+                case 'daily':
+                    return requestDay.getTime() === today.getTime();
+                case 'weekly':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay()); // Start of current week (Sunday)
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6); // End of current week (Saturday)
+                    return requestDay >= weekStart && requestDay <= weekEnd;
+                case 'monthly':
+                    return requestDate.getMonth() === now.getMonth() && requestDate.getFullYear() === now.getFullYear();
+                default:
+                    return true;
+            }
+        });
+    }, [requests, dateFilter]);
+
+    const sortedRequests = useMemo(() => [...filteredRequests].sort((a, b) => {
         // Sort by date/time first, then by status
         const dateA = a.timestamp ? a.timestamp.toDate() : new Date(0);
         const dateB = b.timestamp ? b.timestamp.toDate() : new Date(0);
@@ -50,22 +72,162 @@ export default function RequestsTable({
         const statusA = statusOrder[a.status] || 99; // Default to a high number for unknown statuses
         const statusB = statusOrder[b.status] || 99;
         return statusA - statusB; // Sort by status
-    }), [requests]);
+    }), [filteredRequests]);
+
+    const getFilterCount = (filter: typeof dateFilter) => {
+        if (filter === 'all') return requests.length;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        return requests.filter(request => {
+            const requestDate = request.requestedDateTime ? new Date(request.requestedDateTime) : new Date(0);
+            const requestDay = new Date(requestDate.getFullYear(), requestDate.getMonth(), requestDate.getDate());
+
+            switch (filter) {
+                case 'daily':
+                    return requestDay.getTime() === today.getTime();
+                case 'weekly':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6);
+                    return requestDay >= weekStart && requestDay <= weekEnd;
+                case 'monthly':
+                    return requestDate.getMonth() === now.getMonth() && requestDate.getFullYear() === now.getFullYear();
+                default:
+                    return true;
+            }
+        }).length;
+    };
+    // Function to initiate request editing
+    const handleUpdateClick = (request: Request) => {
+        if (request?.id) {
+            setRequestEditData(request);
+            setEditingRequestId(request.id);
+        }
+    };
+    // Function to cancel request editing
+    const cancelRequestEditing = () => {
+        setEditingRequestId(null);
+        setRequestEditData(null);
+        // setMessage(''); // Clear any previous messages
+    };
+    // Function to delete a request
+    const handleDeleteClick = async (request: Request) => {
+        if (!request.id) return;
+        setUpdatingRequestId(request.id);
+        try {
+            await deleteDoc(doc(db, 'requests', request.id));
+            // setMessage(`Request ${request.requestedVehicle} (${new Date(request.requestedDateTime).toLocaleString()}) deleted successfully!`);
+        } catch (error) {
+            console.error("Error deleting document:", error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            // setMessage(`Error deleting request: ${errorMessage}`);
+        } finally {
+            setUpdatingRequestId(null);
+        }
+    };
+
+    // Handle changes in request editable fields
+    const handleRequestEditDataChange = (e: any) => {
+        const { name, value } = e.target;
+        setRequestEditData(prevData => {
+            if (!prevData) return null;
+            const newData: Request = { ...prevData };
+            (newData as any)[name] = value;
+            return newData;
+        });
+    };
+
+    // Function to save updated request
+    const saveEditedRequest = async (requestId: string) => {
+        console.log(requestEditData)
+        // return
+        if (!db) {
+            //   setMessage("Firebase not initialized.");
+            console.error("Firebase not initialized");
+            return;
+        }
+
+        if (!requestEditData) {
+            //   setMessage("No edit data found.");
+            console.error("No edit data found");
+            return;
+        }
+
+        setUpdatingRequestId(requestId);
+        try {
+            const dataToUpdate = {
+                requestedVehicle: requestEditData.requestedVehicle,
+                requesterName: requestEditData.requesterName,
+                department: requestEditData.department,
+                isDriverRequested: requestEditData.isDriverRequested,
+                delegatedDriverName: requestEditData.delegatedDriverName ?? null,
+                purpose: requestEditData.purpose,
+                destination: requestEditData.destination,
+                requestedDateTime: requestEditData.requestedDateTime,
+                status: requestEditData.status,
+                remarks: requestEditData.remarks,
+                completedDate: null,
+            };
+
+            await updateDoc(doc(db, `requests`, requestId), dataToUpdate);
+
+            //   setMessage(`Request ${requestId} updated successfully!`);
+            setEditingRequestId(null);
+            setRequestEditData(null);
+        } catch (error) {
+            console.error("Error updating request:", error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            //   setMessage(`Error updating request: ${errorMessage}`);
+        } finally {
+            setUpdatingRequestId(null);
+        }
+    };
+
     return (
         <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 sm:p-6 rounded-lg shadow-inner mt-8`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
-                <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>All Requests</h2>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                    <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>All Requests</h2>
+
+                    {/* Date Filter Buttons */}
+                    <div className="flex flex-wrap gap-2">
+                        {(['all', 'daily', 'weekly', 'monthly'] as const).map((filter) => (
+                            <button
+                                key={filter}
+                                onClick={() => setDateFilter(filter)}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition duration-150 ease-in-out ${dateFilter === filter
+                                    ? darkMode
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-blue-500 text-white'
+                                    : darkMode
+                                        ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    } cursor-pointer`}
+                            >
+                                {filter === 'all' && 'All'}
+                                {filter === 'daily' && 'Today'}
+                                {filter === 'weekly' && 'This Week'}
+                                {filter === 'monthly' && 'This Month'} ({getFilterCount(filter)})
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <button
-                    onClick={handleExportClick}
+                    onClick={() => exportToCsv(requests)}
                     className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out cursor-pointer"
                 >
                     Export to CSV
                 </button>
             </div>
-            {requests.length === 0 ? (
-                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center`}>No requests submitted yet.</p>
+            {filteredRequests.length === 0 ? (
+                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} text-center`}>
+                    {dateFilter === 'all' ? 'No requests submitted yet.' : `No requests found for ${dateFilter} view.`}
+                </p>
             ) : (
-                <div className="overflow-x-auto max-h-64">
+                <div className="h-[calc(100vh-375px)] overflow-y-scroll overflow-x-hidden">
                     <table className="min-w-full border-collapse">
                         <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
                             <tr>
@@ -85,7 +247,6 @@ export default function RequestsTable({
                         <tbody >
                             {sortedRequests.map((request: Request, index) => (
                                 <tr key={request.id} className={`${index % 2 === 0 ? (darkMode ? 'bg-gray-800' : 'bg-white') : (darkMode ? 'bg-gray-700' : 'bg-gray-50')} ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}>
-
                                     {/* Request Details: Date/Time, Service Vehicle, Driver - Always visible */}
                                     <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200">
                                         {editingRequestId === request.id ? (
@@ -94,40 +255,39 @@ export default function RequestsTable({
                                                 <input
                                                     type="datetime-local"
                                                     name="requestedDateTime"
-                                                    value={currentEditData?.requestedDateTime || ''}
-                                                    onChange={handleEditChange}
+                                                    value={requestEditData?.requestedDateTime || ''}
+                                                    onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 />
                                                 {/* Service Vehicle */}
                                                 <select
                                                     name="requestedVehicle"
-                                                    value={currentEditData?.requestedVehicle || ''}
-                                                    onChange={handleEditChange}
+                                                    value={requestEditData?.requestedVehicle ?? undefined}
+                                                    onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 >
                                                     <option value="">-- Select SV --</option>
-                                                    {SERVICE_VEHICLES.map((option) => (
-                                                        <option key={option} value={option}>{option}</option>
+                                                    {serviceVehicles.map((serviceVehicle) => (
+                                                        <option key={serviceVehicle.name} value={serviceVehicle.name}>{serviceVehicle.name}</option>
                                                     ))}
                                                 </select>
                                                 {/* Driver */}
                                                 <div className="space-y-1">
                                                     <select
                                                         name="isDriverRequested"
-                                                        value={currentEditData?.isDriverRequested}
-                                                        defaultValue={currentEditData?.isDriverRequested}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.isDriverRequested}
+                                                        onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     >
                                                         <option value="No">No driver</option>
                                                         <option value="Yes">Driver needed</option>
                                                     </select>
-                                                    {currentEditData?.isDriverRequested === 'Yes' && (
+                                                    {requestEditData?.isDriverRequested === 'Yes' && (
                                                         <input
                                                             type="text"
                                                             name="delegatedDriverName"
-                                                            value={currentEditData?.delegatedDriverName || ''}
-                                                            onChange={handleEditChange}
+                                                            value={requestEditData?.delegatedDriverName || ''}
+                                                            onChange={handleRequestEditDataChange}
                                                             className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                             placeholder="Driver name"
                                                         />
@@ -138,20 +298,21 @@ export default function RequestsTable({
                                                     <input
                                                         type="text"
                                                         name="requesterName"
-                                                        value={currentEditData?.requesterName || ''}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.requesterName || ''}
+                                                        onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Personnel"
                                                     />
+                                                    {requestEditData?.department}
                                                     <select
                                                         name="department"
-                                                        value={currentEditData?.department || ''}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.department || ''}
+                                                        onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     >
                                                         <option value="">-- Select Department --</option>
-                                                        {DEPARTMENTS.map((option) => (
-                                                            <option key={option} value={option}>{option}</option>
+                                                        {departments.map((department) => (
+                                                            <option key={department.name} value={department.name}>{department.name}</option>
                                                         ))}
                                                     </select>
                                                 </div>
@@ -193,8 +354,8 @@ export default function RequestsTable({
                                             <input
                                                 type="text"
                                                 name="requesterName"
-                                                value={currentEditData?.requesterName || ''}
-                                                onChange={handleEditChange}
+                                                onChange={handleRequestEditDataChange}
+                                                value={requestEditData?.requesterName || ''}
                                                 className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                             />
                                         ) : (
@@ -207,13 +368,13 @@ export default function RequestsTable({
                                         {editingRequestId === request.id ? (
                                             <select
                                                 name="department"
-                                                value={currentEditData?.department || ''}
-                                                onChange={handleEditChange}
+                                                value={requestEditData?.department || ''}
+                                                onChange={handleRequestEditDataChange}
                                                 className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                             >
                                                 <option value="">-- Select Department --</option>
-                                                {DEPARTMENTS.map((option) => (
-                                                    <option key={option} value={option}>{option}</option>
+                                                {departments.map((department) => (
+                                                    <option key={department.name} value={department.name}>{department.name}</option>
                                                 ))}
                                             </select>
                                         ) : (
@@ -228,8 +389,8 @@ export default function RequestsTable({
                                                 <input
                                                     type="text"
                                                     name="purpose"
-                                                    value={currentEditData?.purpose || ''}
-                                                    onChange={handleEditChange}
+                                                    value={requestEditData?.purpose || ''}
+                                                    onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 />
                                                 {/* Mobile: Show destination inline */}
@@ -237,8 +398,8 @@ export default function RequestsTable({
                                                     <input
                                                         type="text"
                                                         name="destination"
-                                                        value={currentEditData?.destination || ''}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.destination || ''}
+                                                        onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Destination"
                                                     />
@@ -267,8 +428,8 @@ export default function RequestsTable({
                                             <input
                                                 type="text"
                                                 name="destination"
-                                                value={currentEditData?.destination || ''}
-                                                onChange={handleEditChange}
+                                                value={requestEditData?.destination || ''}
+                                                onChange={handleRequestEditDataChange}
                                                 className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                             />
                                         ) : (
@@ -282,12 +443,11 @@ export default function RequestsTable({
                                             <div className="space-y-2">
                                                 <select
                                                     name="status"
-                                                    value={currentEditData?.status || ''}
-                                                    onChange={handleEditChange}
+                                                    value={requestEditData?.status || ''}
+                                                    onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 >
                                                     {REQUEST_STATUSES.map((status) => {
-                                                        if (status == 'Approved') return
                                                         return <option key={status} value={status} className='font-semibold text-gray-600'>{status}</option>;
                                                     })}
                                                 </select>
@@ -296,18 +456,18 @@ export default function RequestsTable({
                                                     <textarea
                                                         name="remarks"
                                                         rows={2}
-                                                        value={currentEditData?.remarks || ''}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.remarks || ''}
+                                                        onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="Remarks"
                                                     />
-                                                    {(currentEditData?.remarks || '').toLowerCase().includes('completed') && (
+                                                    {(requestEditData?.remarks || '').toLowerCase().includes('completed') && (
                                                         <input
                                                             type="date"
                                                             name="completedDate"
                                                             className={`mt-1 block w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                            value={currentEditData?.completedDate || ''}
-                                                            onChange={handleEditChange}
+                                                            value={requestEditData?.completedDate || ''}
+                                                        onChange={handleRequestEditDataChange}
                                                         />
                                                     )}
                                                 </div>
@@ -339,17 +499,17 @@ export default function RequestsTable({
                                                 <textarea
                                                     name="remarks"
                                                     rows={2}
-                                                    value={currentEditData?.remarks || ''}
-                                                    onChange={handleEditChange}
+                                                    value={requestEditData?.remarks || ''}
+                                                    onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 />
-                                                {(currentEditData?.remarks || '').toLowerCase().includes('completed') && (
+                                                {(requestEditData?.remarks || '').toLowerCase().includes('completed') && (
                                                     <input
                                                         type="date"
                                                         name="completedDate"
                                                         className={`mt-2 block w-full px-3 py-1.5 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        value={currentEditData?.completedDate || ''}
-                                                        onChange={handleEditChange}
+                                                        value={requestEditData?.completedDate || ''}
+                                                    onChange={handleRequestEditDataChange}
                                                     />
                                                 )}
                                             </>
@@ -401,7 +561,7 @@ export default function RequestsTable({
                                                         </span>
                                                     </button>
                                                     <button
-                                                        onClick={cancelEditing}
+                                                        onClick={cancelRequestEditing}
                                                         disabled={updatingRequestId === request.id}
                                                         className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                             ${updatingRequestId === request.id

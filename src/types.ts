@@ -1,5 +1,5 @@
 import type { DocumentData, DocumentReference, Timestamp } from "firebase/firestore";
-import type { DEPARTMENTS, REQUEST_STATUSES, SERVICE_VEHICLES, TRIP_STATUSES } from "./constants";
+import type { REQUEST_STATUSES, TRIP_STATUSES } from "./constants";
 
 export type Result = {
   ok: false;
@@ -12,9 +12,9 @@ export type Result = {
 export type Request = {
   id?: string; // ID will be set by Firestore
   timestamp: Timestamp; // Optional, can be null if not set 
-  requestedVehicle: ServiceVehicle; // SV Request type
-  requesterName: string;
-  department: Department;
+  requestedVehicle: string | null; // Service Vehicle
+  requesterName: string;  // Name of the requester
+  department: string; // Department
   isDriverRequested: 'Yes' | 'No'; // Dropdown for driver request
   delegatedDriverName?: string | null; // Optional, can be null if isDriverRequested is false
   purpose: string;
@@ -28,11 +28,12 @@ export type Request = {
   issueFaced?: string;
   actionTaken?: string;
 }
+export type RequestKey = keyof Request;
 export type Trip = {
   id: string; // Firebase auto-generated ID
   tripCode: string; // User-defined trip code (e.g., "250806-0001")
   dateTime: string; // Date and time of the trip in ISO format
-  vehicleAssigned: ServiceVehicle; // Vehicle assigned for the trip
+  vehicleAssigned: string | null; // Vehicle assigned for the trip
   driverName?: string | null; // Optional, can be null if no driver assigned
   personnel: string[];
   purpose: string[];
@@ -40,13 +41,19 @@ export type Trip = {
   requestIds: string[];
   status: TripStatus;
 }
-export type Department = typeof DEPARTMENTS[number];
-export type ServiceVehicle = typeof SERVICE_VEHICLES[number];
+export type Department = {
+  name: string,
+  aliases?: string[]
+}
+export type ServiceVehicle = {
+  name: string,
+  model?: string
+}
 export type SVRStatus = typeof REQUEST_STATUSES[number];
 export type TripStatus = typeof TRIP_STATUSES[number];
 
 export type Notification = {
-  id: string, 
+  id: string,
   type: 'added' | 'add attempt' | 'updated' | 'update attempt' | 'deleted' | 'delete attempt',
   details: string,
   timestamp: string
