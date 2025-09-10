@@ -265,426 +265,424 @@ export default function RequestsTable({
                                 const colorScheme = pastelColors[requestIndex % pastelColors.length];
 
                                 return (
-                                <tr key={request.id} className={`${darkMode ? colorScheme.darkBg : colorScheme.bg} border-l-4 ${darkMode ? colorScheme.darkBorder : colorScheme.border} hover:opacity-80 transition-opacity duration-200`}>
-                                    {/* Request Details: Date/Time, Service Vehicle, Driver - Always visible */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                                        {editingRequestId === request.id ? (
-                                            <div className="space-y-2">
-                                                {/* Date/Time - Combined */}
-                                                <input
-                                                    type="datetime-local"
-                                                    name="requestedDateTime"
-                                                    value={requestEditData?.requestedDateTime || ''}
-                                                    onChange={handleRequestEditDataChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                />
-                                                {/* ETA */}
-                                                <input
-                                                    type="time"
-                                                    name="estimatedArrival"
-                                                    value={requestEditData?.estimatedArrival ? new Date(requestEditData.estimatedArrival).toTimeString().slice(0, 5) : ''}
-                                                    onChange={handleRequestEditDataChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                    placeholder="ETA"
-                                                />
-                                                {/* Service Vehicle */}
-                                                <select
-                                                    name="requestedVehicle"
-                                                    value={requestEditData?.requestedVehicle ?? undefined}
-                                                    onChange={handleRequestEditDataChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                >
-                                                    <option value="">-- Select SV --</option>
-                                                    {serviceVehicles.map((serviceVehicle) => (
-                                                        <option key={serviceVehicle.name} value={serviceVehicle.name}>{serviceVehicle.name}</option>
-                                                    ))}
-                                                </select>
-                                                {/* Driver */}
-                                                <div className="space-y-1">
-                                                    <select
-                                                        name="isDriverRequested"
-                                                        value={requestEditData?.isDriverRequested}
-                                                        onChange={handleRequestEditDataChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                    >
-                                                        <option value="No">No driver</option>
-                                                        <option value="Yes">Driver needed</option>
-                                                    </select>
-                                                    {requestEditData?.isDriverRequested === 'Yes' && (
-                                                        <input
-                                                            type="text"
-                                                            name="delegatedDriverName"
-                                                            value={requestEditData?.delegatedDriverName || ''}
-                                                            onChange={handleRequestEditDataChange}
-                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                            placeholder="Driver name"
-                                                        />
-                                                    )}
-                                                </div>
-                                                {/* Mobile: Show personnel and department on mobile when editing */}
-                                                <div className="sm:hidden space-y-2">
+                                    <tr key={request.id} className={`${darkMode ? colorScheme.darkBg : colorScheme.bg} border-l-4 ${darkMode ? colorScheme.darkBorder : colorScheme.border} hover:opacity-80 transition-opacity duration-200`}>
+                                        {/* Request Details: Date/Time, Service Vehicle, Driver - Always visible */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                            {editingRequestId === request.id ? (
+                                                <div className="space-y-2">
+                                                    {/* Date/Time - Combined */}
                                                     <input
-                                                        type="text"
-                                                        name="requesterName"
-                                                        value={requestEditData?.requesterName || ''}
+                                                        type="datetime-local"
+                                                        name="requestedDateTime"
+                                                        value={requestEditData?.requestedDateTime || ''}
                                                         onChange={handleRequestEditDataChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="Personnel"
                                                     />
-                                                    {requestEditData?.department}
-                                                    <select
-                                                        name="department"
-                                                        value={requestEditData?.department || ''}
-                                                        onChange={handleRequestEditDataChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                    >
-                                                        <option value="">-- Select Department --</option>
-                                                        {departments.map((department) => (
-                                                            <option key={department.name} value={department.name}>{department.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {/* Date/Time - Combined in one line, shorter on mobile */}
-                                                <div className="text-xs sm:text-sm font-medium">
-                                                    🕐 {request.requestedDateTime ?
-                                                        new Date(request.requestedDateTime).toLocaleString([], {
-                                                            month: '2-digit',
-                                                            day: '2-digit',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        }) :
-                                                        `${getCurrentDate()} ${getCurrentTime()}`
-                                                    }
-                                                </div>
-                                                {/* ETA - if present */}
-                                                {request.estimatedArrival && (
-                                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                        ETA: {new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                    </div>
-                                                )}
-                                                {/* Service Vehicle */}
-                                                <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
-                                                    🛻 {request.requestedVehicle}
-                                                </div>
-                                                {/* Driver */}
-                                                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                    👤 {request.isDriverRequested === 'Yes' ? (request.delegatedDriverName || 'Driver needed') : 'No driver'}
-                                                </div>
-                                                {/* Mobile: Show personnel and department inline on mobile */}
-                                                <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
-                                                    {request.requesterName} - {request.department}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Requesting Personnel - Hidden on mobile */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
-                                        {editingRequestId === request.id ? (
-                                            <input
-                                                type="text"
-                                                name="requesterName"
-                                                onChange={handleRequestEditDataChange}
-                                                value={requestEditData?.requesterName || ''}
-                                                className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                            />
-                                        ) : (
-                                            <div className="text-sm">
-                                                {request.requesterName}
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Department - Hidden on mobile/tablet */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
-                                        {editingRequestId === request.id ? (
-                                            <select
-                                                name="department"
-                                                value={requestEditData?.department || ''}
-                                                onChange={handleRequestEditDataChange}
-                                                className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                            >
-                                                <option value="">-- Select Department --</option>
-                                                {departments.map((department) => (
-                                                    <option key={department.name} value={department.name}>{department.name}</option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <div className="text-sm">
-                                                {request.department}
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Purpose of Request - Always visible but truncated on mobile */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                                        {editingRequestId === request.id ? (
-                                            <div className="space-y-2">
-                                                <input
-                                                    type="text"
-                                                    name="purpose"
-                                                    value={requestEditData?.purpose || ''}
-                                                    onChange={handleRequestEditDataChange}
-                                                    className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                />
-                                                {/* Mobile: Show destination inline */}
-                                                <div className="lg:hidden">
-                                                    <input
-                                                        type="text"
-                                                        name="destination"
-                                                        value={requestEditData?.destination || ''}
-                                                        onChange={handleRequestEditDataChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="Destination"
-                                                    />
+                                                    {/* ETA */}
                                                     <input
                                                         type="time"
                                                         name="estimatedArrival"
                                                         value={requestEditData?.estimatedArrival ? new Date(requestEditData.estimatedArrival).toTimeString().slice(0, 5) : ''}
                                                         onChange={handleRequestEditDataChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs mt-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                         placeholder="ETA"
                                                     />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <div className="break-words">
-                                                    <div className="sm:whitespace-normal">
-                                                        {request.purpose}
-                                                    </div>
-                                                    {/* Mobile: Show destination inline */}
-                                                    <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        </svg>
-                                                        {request.destination}
-                                                        {request.estimatedArrival && (
-                                                            <>
-                                                                <span className="mx-1">•</span>
-                                                                <span>ETA: {new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                            </>
+                                                    {/* Service Vehicle */}
+                                                    <select
+                                                        name="requestedVehicle"
+                                                        value={requestEditData?.requestedVehicle ?? undefined}
+                                                        onChange={handleRequestEditDataChange}
+                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                    >
+                                                        <option value="">-- Select SV --</option>
+                                                        {serviceVehicles.map((serviceVehicle) => (
+                                                            <option key={serviceVehicle.name} value={serviceVehicle.name}>{serviceVehicle.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    {/* Driver */}
+                                                    <div className="space-y-1">
+                                                        <select
+                                                            name="isDriverRequested"
+                                                            value={requestEditData?.isDriverRequested}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        >
+                                                            <option value="No">No driver</option>
+                                                            <option value="Yes">Driver needed</option>
+                                                        </select>
+                                                        {requestEditData?.isDriverRequested === 'Yes' && (
+                                                            <input
+                                                                type="text"
+                                                                name="delegatedDriverName"
+                                                                value={requestEditData?.delegatedDriverName || ''}
+                                                                onChange={handleRequestEditDataChange}
+                                                                className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                                placeholder="Driver name"
+                                                            />
                                                         )}
                                                     </div>
+                                                    {/* Mobile: Show personnel and department on mobile when editing */}
+                                                    <div className="sm:hidden space-y-2">
+                                                        <input
+                                                            type="text"
+                                                            name="requesterName"
+                                                            value={requestEditData?.requesterName || ''}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="Personnel"
+                                                        />
+                                                        {requestEditData?.department}
+                                                        <select
+                                                            name="department"
+                                                            value={requestEditData?.department || ''}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        >
+                                                            <option value="">-- Select Department --</option>
+                                                            {departments.map((department) => (
+                                                                <option key={department.name} value={department.name}>{department.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </td>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {/* Date/Time - Combined in one line, shorter on mobile */}
+                                                    <div className="text-xs sm:text-sm font-medium">
+                                                        🕐 {request.requestedDateTime ?
+                                                            new Date(request.requestedDateTime).toLocaleString([], {
+                                                                month: '2-digit',
+                                                                day: '2-digit',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }) :
+                                                            `${getCurrentDate()} ${getCurrentTime()}`
+                                                        }
+                                                    </div>
+                                                    {/* ETA - if present */}
+                                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                        ETA: {request.estimatedArrival ? new Date(request.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(`${getCurrentDate()}T23:59:59`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                    {/* Service Vehicle */}
+                                                    <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                                        🛻 {request.requestedVehicle}
+                                                    </div>
+                                                    {/* Driver */}
+                                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                        👤 {request.isDriverRequested === 'Yes' ? (request.delegatedDriverName || 'Driver needed') : 'No driver'}
+                                                    </div>
+                                                    {/* Mobile: Show personnel and department inline on mobile */}
+                                                    <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
+                                                        {request.requesterName} - {request.department}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
 
-                                    {/* Destination - Hidden on mobile/tablet */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
-                                        {editingRequestId === request.id ? (
-                                            <input
-                                                type="text"
-                                                name="destination"
-                                                value={requestEditData?.destination || ''}
-                                                onChange={handleRequestEditDataChange}
-                                                className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                            />
-                                        ) : (
-                                            <div className="text-sm">
-                                                {request.destination}
-                                            </div>
-                                        )}
-                                    </td>
+                                        {/* Requesting Personnel - Hidden on mobile */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
+                                            {editingRequestId === request.id ? (
+                                                <input
+                                                    type="text"
+                                                    name="requesterName"
+                                                    onChange={handleRequestEditDataChange}
+                                                    value={requestEditData?.requesterName || ''}
+                                                    className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                />
+                                            ) : (
+                                                <div className="text-sm">
+                                                    {request.requesterName}
+                                                </div>
+                                            )}
+                                        </td>
 
-                                    {/* Status - Always visible */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm font-semibold border border-gray-200`}>
-                                        {editingRequestId === request.id ? (
-                                            <div className="space-y-2">
+                                        {/* Department - Hidden on mobile/tablet */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
+                                            {editingRequestId === request.id ? (
                                                 <select
-                                                    name="status"
-                                                    value={requestEditData?.status || ''}
+                                                    name="department"
+                                                    value={requestEditData?.department || ''}
                                                     onChange={handleRequestEditDataChange}
                                                     className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                 >
-                                                    {REQUEST_STATUSES.map((status) => {
-                                                        return <option key={status} value={status} className='font-semibold text-gray-600'>{status}</option>;
-                                                    })}
+                                                    <option value="">-- Select Department --</option>
+                                                    {departments.map((department) => (
+                                                        <option key={department.name} value={department.name}>{department.name}</option>
+                                                    ))}
                                                 </select>
-                                                {/* Mobile: Show remarks inline */}
-                                                <div className="xl:hidden">
+                                            ) : (
+                                                <div className="text-sm">
+                                                    {request.department}
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Purpose of Request - Always visible but truncated on mobile */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                            {editingRequestId === request.id ? (
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        name="purpose"
+                                                        value={requestEditData?.purpose || ''}
+                                                        onChange={handleRequestEditDataChange}
+                                                        className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                    />
+                                                    {/* Mobile: Show destination inline */}
+                                                    <div className="lg:hidden">
+                                                        <input
+                                                            type="text"
+                                                            name="destination"
+                                                            value={requestEditData?.destination || ''}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="Destination"
+                                                        />
+                                                        <input
+                                                            type="time"
+                                                            name="estimatedArrival"
+                                                            value={requestEditData?.estimatedArrival ? new Date(requestEditData.estimatedArrival).toTimeString().slice(0, 5) : ''}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs mt-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="ETA"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <div className="break-words">
+                                                        <div className="sm:whitespace-normal">
+                                                            {request.purpose}
+                                                        </div>
+                                                        {/* Mobile: Show destination inline */}
+                                                        <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            </svg>
+                                                            {request.destination}
+                                                            {request.estimatedArrival && (
+                                                                <>
+                                                                    <span className="mx-1">•</span>
+                                                                    <span>ETA: {new Date(request.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Destination - Hidden on mobile/tablet */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
+                                            {editingRequestId === request.id ? (
+                                                <input
+                                                    type="text"
+                                                    name="destination"
+                                                    value={requestEditData?.destination || ''}
+                                                    onChange={handleRequestEditDataChange}
+                                                    className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                />
+                                            ) : (
+                                                <div className="text-sm">
+                                                    {request.destination}
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Status - Always visible */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm font-semibold border border-gray-200`}>
+                                            {editingRequestId === request.id ? (
+                                                <div className="space-y-2">
+                                                    <select
+                                                        name="status"
+                                                        value={requestEditData?.status || ''}
+                                                        onChange={handleRequestEditDataChange}
+                                                        className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                    >
+                                                        {REQUEST_STATUSES.map((status) => {
+                                                            return <option key={status} value={status} className='font-semibold text-gray-600'>{status}</option>;
+                                                        })}
+                                                    </select>
+                                                    {/* Mobile: Show remarks inline */}
+                                                    <div className="xl:hidden">
+                                                        <textarea
+                                                            name="remarks"
+                                                            rows={2}
+                                                            value={requestEditData?.remarks || ''}
+                                                            onChange={handleRequestEditDataChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="Remarks"
+                                                        />
+                                                        {(requestEditData?.remarks || '').toLowerCase().includes('completed') && (
+                                                            <input
+                                                                type="date"
+                                                                name="completedDate"
+                                                                className={`mt-1 block w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                                value={requestEditData?.completedDate || ''}
+                                                                onChange={handleRequestEditDataChange}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <span className={`${request.status === 'Pending' ? 'text-red-500' : request.status === 'Approved' ? 'text-green-500' : request.status === 'Rescheduled' ? 'text-yellow-500' : 'text-gray-500'}`}>
+                                                        {request.status}
+                                                    </span>
+                                                    {/* Mobile: Show remarks inline */}
+                                                    <div className="xl:hidden text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                        {request.remarks && (
+                                                            <div>
+                                                                {request.remarks}
+                                                                {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
+                                                                    <span className="ml-1">({request.completedDate})</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Remarks - Hidden on mobile */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-48 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden xl:table-cell`}>
+                                            {editingRequestId === request.id ? (
+                                                <>
                                                     <textarea
                                                         name="remarks"
                                                         rows={2}
                                                         value={requestEditData?.remarks || ''}
                                                         onChange={handleRequestEditDataChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="Remarks"
+                                                        className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     />
                                                     {(requestEditData?.remarks || '').toLowerCase().includes('completed') && (
                                                         <input
                                                             type="date"
                                                             name="completedDate"
-                                                            className={`mt-1 block w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            className={`mt-2 block w-full px-3 py-1.5 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                             value={requestEditData?.completedDate || ''}
-                                                        onChange={handleRequestEditDataChange}
+                                                            onChange={handleRequestEditDataChange}
                                                         />
                                                     )}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <span className={`${request.status === 'Pending' ? 'text-red-500' : request.status === 'Approved' ? 'text-green-500' : request.status === 'Rescheduled' ? 'text-yellow-500' : 'text-gray-500'}`}>
-                                                    {request.status}
-                                                </span>
-                                                {/* Mobile: Show remarks inline */}
-                                                <div className="xl:hidden text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                    {request.remarks && (
-                                                        <div>
-                                                            {request.remarks}
-                                                            {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
-                                                                <span className="ml-1">({request.completedDate})</span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Remarks - Hidden on mobile */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-48 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden xl:table-cell`}>
-                                        {editingRequestId === request.id ? (
-                                            <>
-                                                <textarea
-                                                    name="remarks"
-                                                    rows={2}
-                                                    value={requestEditData?.remarks || ''}
-                                                    onChange={handleRequestEditDataChange}
-                                                    className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                />
-                                                {(requestEditData?.remarks || '').toLowerCase().includes('completed') && (
-                                                    <input
-                                                        type="date"
-                                                        name="completedDate"
-                                                        className={`mt-2 block w-full px-3 py-1.5 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        value={requestEditData?.completedDate || ''}
-                                                    onChange={handleRequestEditDataChange}
-                                                    />
-                                                )}
-                                            </>
-                                        ) : (
-                                            <div className="text-sm">
-                                                {request.remarks}
-                                                {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
-                                                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({request.completedDate})</span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Timestamp - Hidden on mobile/tablet */}
-                                    <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
-                                        {!request.timestamp ? (
-                                            <div className="text-xs space-y-1">
-                                                <div className="text-gray-500">N/A</div>
-                                            </div>
-                                        ) : (
-                                            <div className="text-xs space-y-1">
-                                                <div className="font-medium">
-                                                    <div>{new Date(request.timestamp.toDate()).toLocaleDateString()}</div>
-                                                    <div className="text-gray-500">{new Date(request.timestamp.toDate()).toLocaleTimeString()}</div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Actions (Update/Save/Cancel and Delete) - Always visible for admin */}
-                                    {isAdmin &&
-                                        <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
-                                            {editingRequestId === request.id ? (
-                                                <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
-                                                    <button
-                                                        onClick={() => request.id && saveEditedRequest(request.id)}
-                                                        disabled={updatingRequestId === request.id}
-                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                            }`}
-                                                    >
-                                                        <span className="hidden sm:inline">
-                                                            {updatingRequestId === request.id ? 'Saving...' : 'Save'}
-                                                        </span>
-                                                        <span className="sm:hidden">
-                                                            {updatingRequestId === request.id ? '⏳' : '💾'}
-                                                        </span>
-                                                    </button>
-                                                    <button
-                                                        onClick={cancelRequestEditing}
-                                                        disabled={updatingRequestId === request.id}
-                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
-                                                            }`}
-                                                    >
-                                                        <span className="hidden sm:inline">Cancel</span>
-                                                        <span className="sm:hidden">❌</span>
-                                                    </button>
-                                                </div>
+                                                </>
                                             ) : (
-                                                <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
-                                                    <button
-                                                        onClick={() => handleUpdateClick(request)}
-                                                        disabled={!isAdmin || updatingRequestId === request.id}
-                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && updatingRequestId !== request.id
-                                                                ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                                                                : 'bg-blue-300 text-gray-200 cursor-not-allowed'
-                                                            }`
-                                                        }
-                                                    >
-                                                        Update
-                                                    </button>
-                                                    {
-                                                        !(isAdmin && request.status == 'Pending') ? null :
-                                                            <button
-                                                                onClick={() => handleApproveClick(request)}
-                                                                disabled={!isAdmin || request.status !== 'Pending' || updatingRequestId === request.id}
-                                                                className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && request.status === 'Pending' && updatingRequestId !== request.id
-                                                                        ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                        : 'bg-green-300 text-gray-200 cursor-not-allowed'
-                                                                    }`
-                                                                }
-                                                                title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
-                                                            >
-                                                                <span className="hidden sm:inline">
-                                                                    {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
-                                                                </span>
-                                                                <span className="sm:hidden">
-                                                                    {updatingRequestId === request.id ? '⏳' : 'Approve'}
-                                                                </span>
-                                                            </button>
-                                                    }
-                                                    <button
-                                                        onClick={() => handleDeleteClick(request)}
-                                                        disabled={!isAdmin || updatingRequestId === request.id}
-                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && updatingRequestId !== request.id
-                                                                ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
-                                                                : 'bg-red-300 text-gray-200 cursor-not-allowed'
-                                                            }`
-                                                        }
-                                                    >
-                                                        <span className="hidden sm:inline">
-                                                            {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
-                                                        </span>
-                                                        <span className="sm:hidden">
-                                                            {updatingRequestId === request.id ? '⏳' : 'Delete'}
-                                                        </span>
-                                                    </button>
+                                                <div className="text-sm">
+                                                    {request.remarks}
+                                                    {(request.remarks || '').toLowerCase().includes('completed') && request.completedDate && (
+                                                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({request.completedDate})</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
-                                    }
-                                </tr>
+
+                                        {/* Timestamp - Hidden on mobile/tablet */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
+                                            {!request.timestamp ? (
+                                                <div className="text-xs space-y-1">
+                                                    <div className="text-gray-500">N/A</div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs space-y-1">
+                                                    <div className="font-medium">
+                                                        <div>{new Date(request.timestamp.toDate()).toLocaleDateString()}</div>
+                                                        <div className="text-gray-500">{new Date(request.timestamp.toDate()).toLocaleTimeString()}</div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Actions (Update/Save/Cancel and Delete) - Always visible for admin */}
+                                        {isAdmin &&
+                                            <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
+                                                {editingRequestId === request.id ? (
+                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
+                                                        <button
+                                                            onClick={() => request.id && saveEditedRequest(request.id)}
+                                                            disabled={updatingRequestId === request.id}
+                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                            ${updatingRequestId === request.id
+                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                    : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                }`}
+                                                        >
+                                                            <span className="hidden sm:inline">
+                                                                {updatingRequestId === request.id ? 'Saving...' : 'Save'}
+                                                            </span>
+                                                            <span className="sm:hidden">
+                                                                {updatingRequestId === request.id ? '⏳' : '💾'}
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            onClick={cancelRequestEditing}
+                                                            disabled={updatingRequestId === request.id}
+                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                            ${updatingRequestId === request.id
+                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                    : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
+                                                                }`}
+                                                        >
+                                                            <span className="hidden sm:inline">Cancel</span>
+                                                            <span className="sm:hidden">❌</span>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
+                                                        <button
+                                                            onClick={() => handleUpdateClick(request)}
+                                                            disabled={!isAdmin || updatingRequestId === request.id}
+                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && updatingRequestId !== request.id
+                                                                    ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
+                                                                    : 'bg-blue-300 text-gray-200 cursor-not-allowed'
+                                                                }`
+                                                            }
+                                                        >
+                                                            Update
+                                                        </button>
+                                                        {
+                                                            !(isAdmin && request.status == 'Pending') ? null :
+                                                                <button
+                                                                    onClick={() => handleApproveClick(request)}
+                                                                    disabled={!isAdmin || request.status !== 'Pending' || updatingRequestId === request.id}
+                                                                    className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && request.status === 'Pending' && updatingRequestId !== request.id
+                                                                            ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                            : 'bg-green-300 text-gray-200 cursor-not-allowed'
+                                                                        }`
+                                                                    }
+                                                                    title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
+                                                                >
+                                                                    <span className="hidden sm:inline">
+                                                                        {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
+                                                                    </span>
+                                                                    <span className="sm:hidden">
+                                                                        {updatingRequestId === request.id ? '⏳' : 'Approve'}
+                                                                    </span>
+                                                                </button>
+                                                        }
+                                                        <button
+                                                            onClick={() => handleDeleteClick(request)}
+                                                            disabled={!isAdmin || updatingRequestId === request.id}
+                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && updatingRequestId !== request.id
+                                                                    ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
+                                                                    : 'bg-red-300 text-gray-200 cursor-not-allowed'
+                                                                }`
+                                                            }
+                                                        >
+                                                            <span className="hidden sm:inline">
+                                                                {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
+                                                            </span>
+                                                            <span className="sm:hidden">
+                                                                {updatingRequestId === request.id ? '⏳' : 'Delete'}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        }
+                                    </tr>
                                 );
                             })}
                         </tbody>

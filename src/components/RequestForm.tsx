@@ -3,6 +3,7 @@ import type { Department, Request, ServiceVehicle } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
 import { Timestamp } from "firebase/firestore";
 import { useConstants } from "../hooks/useConstants";
+import useRequests from "../hooks/useRequests";
 
 interface RequestFormProps {
     darkMode: boolean
@@ -19,9 +20,16 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const [remarks, setRemarks] = useState('');
     const [dateOfRequest, setDateOfRequest] = useState(getCurrentDate());
     const [timeOfRequest, setTimeOfRequest] = useState(getCurrentTime());
-    const [estimatedArrival, setEstimatedArrival] = useState('');
+    const [estimatedArrival, setEstimatedArrival] = useState(() => {
+        const now = new Date();
+        now.setHours(now.getHours() + 1, 30, 0, 0);
+        return now.toTimeString().slice(0, 5);
+    });
     const [isLoading, setIsLoading] = useState(false);
     const { serviceVehicles, departments } = useConstants();
+    const { todayRequests } = useRequests();
+
+    const unavailableVehicles = todayRequests.map(req => [req.requestedVehicle, req.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -63,7 +71,6 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
             setRemarks('');
             setDateOfRequest(getCurrentDate());
             setTimeOfRequest(getCurrentTime());
-            setEstimatedArrival('');
         } catch (error) {
             console.error('Error submitting request:', error);
         } finally {
@@ -125,7 +132,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                     {/* Service Vehicle */}
                     <div className="flex flex-col space-y-2">
                         <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            Service Vehicle
+                            Service Vehicle *
                         </label>
                         <div className="flex items-center space-x-2">
                             <svg xmlns="http://www.w3.org/2000/svg"
@@ -140,14 +147,22 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                             </svg>
                             <select
                                 className={`flex-1 px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                value={requestedVehicle?.name}
+                                value={requestedVehicle?.name || ''}
                                 onChange={(e) => setRequestedVehicle(serviceVehicles.find(sv => sv.name == (e.target as HTMLSelectElement).value) || null)}
                                 disabled={isLoading}
+                                required
                             >
                                 <option value="">Select Service Vehicle</option>
-                                {serviceVehicles.map((serviceVehicle) => (
-                                    <option key={serviceVehicle.name} value={serviceVehicle.name}>{serviceVehicle.name} {serviceVehicle?.model ? `(${serviceVehicle.model})` : null}</option>
-                                ))}
+                                {serviceVehicles.map((serviceVehicle) => {
+                                    const vehicleUnavailable = unavailableVehicles.find(uv => uv[0] === serviceVehicle.name);
+                                    const isVehicleUnavailable = vehicleUnavailable !== undefined;
+                                    return (
+                                        <option key={serviceVehicle.name} value={serviceVehicle.name} disabled={isVehicleUnavailable}
+                                            className={isVehicleUnavailable ? 'text-red-500/80 font-semibold' : ''}>
+                                            {serviceVehicle.name} {isVehicleUnavailable ? `(Until ${new Date(vehicleUnavailable?.[1] as string).toLocaleTimeString()})` : ''}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>
@@ -247,7 +262,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                     {/* Time */}
                     <div className="flex flex-col space-y-2">
                         <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            Request Time *
+                            Time of Departure *
                         </label>
                         <div className="flex items-center space-x-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -267,7 +282,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                     {/* ETA */}
                     <div className="flex flex-col space-y-2">
                         <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            ETA *
+                            Estimated Time of Arrival *
                         </label>
                         <div className="flex items-center space-x-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -275,7 +290,6 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                             </svg>
                             <input
                                 type="time"
-                                placeholder="ETA"
                                 className={`flex-1 px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 value={estimatedArrival}
                                 onChange={(e) => setEstimatedArrival((e.target as HTMLInputElement).value)}

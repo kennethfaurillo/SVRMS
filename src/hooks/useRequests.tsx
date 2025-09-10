@@ -1,5 +1,5 @@
 import { addDoc, collection, onSnapshot, query, waitForPendingWrites } from "firebase/firestore";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
 import { firebaseAuth, firebaseFirestore } from "../firebase";
 import type { Request, Result, SVRStatus } from "../types";
@@ -14,6 +14,17 @@ export default function useRequests(onRequestsChange?: (type: 'added' | 'modifie
 
     const [requests, setRequests] = useState<Request[]>([]);
     const { user } = useAuth();
+
+    const todayRequests = useMemo(() => {
+        const today = new Date();
+        return requests.filter(request => {
+            const requestDate = request.timestamp?.toDate();
+            return requestDate &&
+                requestDate.getDate() === today.getDate() &&
+                requestDate.getMonth() === today.getMonth() &&
+                requestDate.getFullYear() === today.getFullYear();
+        });
+    }, [requests]);
 
     useEffect(() => {
         let isInitialLoad = true
@@ -68,5 +79,5 @@ export default function useRequests(onRequestsChange?: (type: 'added' | 'modifie
         }
     }
 
-    return { requests, addRequest }
+    return { requests, addRequest, todayRequests }
 }
