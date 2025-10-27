@@ -4,6 +4,7 @@ import { getCurrentDate, getCurrentTime } from "../utils";
 import { Timestamp } from "firebase/firestore";
 import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
+import useTrips from "../hooks/useTrips";
 
 interface RequestFormProps {
     darkMode: boolean
@@ -28,8 +29,9 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const { serviceVehicles, departments } = useConstants();
     const { todayRequests } = useRequests();
+    const { todayTrips } = useTrips();
 
-    const unavailableVehicles = todayRequests.map(req => [req.requestedVehicle, req.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
+    const unavailableVehicles = todayTrips.map(trip => [trip.vehicleAssigned, trip.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -157,7 +159,8 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                                     const vehicleUnavailable = unavailableVehicles.find(uv => uv[0] === serviceVehicle.name);
                                     const isVehicleUnavailable = vehicleUnavailable !== undefined;
                                     return (
-                                        <option key={serviceVehicle.name} value={serviceVehicle.name} disabled={isVehicleUnavailable}
+                                        // temporarily allow selection of unavailable vehicles
+                                        <option key={serviceVehicle.name} value={serviceVehicle.name}
                                             className={isVehicleUnavailable ? 'text-red-500/80 font-semibold' : ''}>
                                             {serviceVehicle.name} {isVehicleUnavailable ? `(Until ${new Date(vehicleUnavailable?.[1] as string).toLocaleTimeString()})` : ''}
                                         </option>

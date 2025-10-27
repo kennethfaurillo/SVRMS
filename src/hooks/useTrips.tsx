@@ -18,6 +18,18 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
     }, [trips]);
     const { user } = useAuth();
 
+    
+    const todayTrips = useMemo(() => {
+        const today = new Date();
+        return trips.filter(trip => {
+            const tripDate = new Date(trip?.dateTime);
+            return tripDate &&
+                tripDate.getDate() === today.getDate() &&
+                tripDate.getMonth() === today.getMonth() &&
+                tripDate.getFullYear() === today.getFullYear();
+        });
+    }, [trips]);
+
     useEffect(() => {
         let isInitialLoad = true;
         if (db && auth && user) {
@@ -48,7 +60,7 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
         }
     }, [user]);
 
-    return { trips, newTripCode }
+    return { trips, newTripCode, todayTrips }
 }
 
 // Function to generate auto-filled trip code in format YYMMDD-XXXX
