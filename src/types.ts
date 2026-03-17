@@ -28,6 +28,7 @@ export type Request = {
   // Admin Only Fields
   issueFaced?: string;
   actionTaken?: string;
+  passengers?: string[];
 }
 export type RequestKey = keyof Request;
 export type Trip = {
@@ -38,6 +39,7 @@ export type Trip = {
   vehicleAssigned: string | null; // Vehicle assigned for the trip
   driverName?: string | null; // Optional, can be null if no driver assigned
   personnel: string[];
+  passengers?: string[];
   purpose: string[];
   destination: string;
   requestIds: string[];
@@ -49,7 +51,8 @@ export type Department = {
 }
 export type ServiceVehicle = {
   name: string,
-  model?: string
+  model?: string,
+  image?: string
 }
 export type SVRStatus = typeof REQUEST_STATUSES[number];
 export type TripStatus = typeof TRIP_STATUSES[number];
@@ -59,4 +62,18 @@ export type Notification = {
   type: 'added' | 'add attempt' | 'updated' | 'update attempt' | 'deleted' | 'delete attempt',
   details: string,
   timestamp: string
+}
+// Add these to your types.ts
+export type Vehicle = {
+  id: string;
+  name: string;
+  status?: string; // optional, e.g., 'Active', 'Inactive'
+  [key: string]: any; // allows extra fields from Firestore
+}
+
+export type Driver = {
+  id: string;
+  name: string;
+  status?: string; // optional, e.g., 'Active', 'Inactive'
+  [key: string]: any; // allows extra fields from Firestore
 }

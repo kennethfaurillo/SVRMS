@@ -29,6 +29,7 @@ export default function RequestsTable({
     const { requests } = useRequests();
     const { serviceVehicles, departments } = useConstants();
 
+ 
     const filteredRequests = useMemo(() => {
         if (dateFilter === 'all') return requests;
 
@@ -172,6 +173,7 @@ export default function RequestsTable({
                 requestedVehicle: requestEditData.requestedVehicle,
                 requesterName: requestEditData.requesterName,
                 department: requestEditData.department,
+                passengers: requestEditData.passengers || [],
                 isDriverRequested: requestEditData.isDriverRequested,
                 delegatedDriverName: requestEditData.delegatedDriverName ?? null,
                 purpose: requestEditData.purpose,
@@ -250,6 +252,7 @@ export default function RequestsTable({
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Request Details</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Department</th>
+                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Passengers</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
@@ -416,7 +419,62 @@ export default function RequestsTable({
                                                 </div>
                                             )}
                                         </td>
+                                         
+                                         <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
+                                          {/* ⭐ ADDED START - Better Passengers Editor */}
+{editingRequestId === request.id ? (
+    <div className="space-y-1">
+        {(requestEditData?.passengers || []).map((passenger, index) => (
+            <input
+                key={index}
+                type="text"
+                value={passenger}
+                onChange={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const updatedPassengers = [...(requestEditData?.passengers || [])];
+                    updatedPassengers[index] = target.value;
 
+                    setRequestEditData(prev => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            passengers: updatedPassengers
+                        };
+                    });
+                }}
+                className={`w-full border rounded-md px-2 py-1 text-xs ${
+                    darkMode
+                        ? 'bg-gray-600 text-white border-gray-500'
+                        : 'border-gray-300'
+                }`}
+                placeholder={`Passenger ${index + 1}`}
+            />
+        ))}
+
+        {/* Add Passenger Button */}
+        <button
+            type="button"
+            onClick={() => {
+                setRequestEditData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        passengers: [...(prev.passengers || []), ""]
+                    };
+                });
+            }}
+            className="text-xs text-blue-500 hover:underline"
+        >
+            + Add Passenger
+        </button>
+    </div>
+) : (
+    request.passengers && request.passengers.length > 0
+        ? request.passengers.join(', ')
+        : <span className="text-gray-400">-</span>
+)}
+{/* ⭐ ADDED END */}
+                                        </td>
                                         {/* Purpose of Request - Always visible but truncated on mobile */}
                                         <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                             {editingRequestId === request.id ? (

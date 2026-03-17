@@ -19,10 +19,21 @@ const sidebarItems = [
         path: '/trips',
         icon: <MapPinCheckIcon stroke={'white'} size={20} />,
     },
+    // ===== ADDED ITEMS =====
+{
+    label: 'Maintenance',
+    path: '/maintenance/automotive',
+    icon: <ClipboardClockIcon stroke={'white'} size={20} />,
+},
+{
+    label: 'Equipment Borrow',
+    path: '/equipment-borrow',
+    icon: <FileTextIcon stroke={'white'} size={20} />,
+},
     {
         label: 'Analytics',
-        path: '/analytics',
-        icon: <ChartColumnIcon stroke={'white'} size={20} />,
+  path: '/analytics', 
+  icon: <ChartColumnIcon stroke={'white'} size={20} />,
     }
 ] as const
 
