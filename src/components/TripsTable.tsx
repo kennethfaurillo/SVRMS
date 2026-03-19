@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from "preact/hooks";
+import { useMemo, useState} from "preact/hooks";
 import type { Trip } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
 import { useAuth } from "../contexts/AuthContext";
 import { useConstants } from "../hooks/useConstants";
-import { firebaseFirestore } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+
+
+
 
 interface TripsTableProps {
     trips: Trip[];
@@ -36,58 +37,6 @@ export default function TripsTable({
     const { isAdmin } = useAuth();
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const { serviceVehiclesString: serviceVehicles } = useConstants();
-    
-    // ⭐ ADDED START - Passengers map by tripCode
-  interface RequestItem {
-    passengers?: string[];
-  }
-  const [tripRequestsMap, setTripRequestsMap] = useState<Record<string, RequestItem[]>>({});
-  const [loadingPassengers, setLoadingPassengers] = useState(true);
-  // ⭐ ADDED END
-
-  // ⭐ ADDED START - Fetch requests for trips using tripCode
-  useEffect(() => {
-    let mounted = true;
-    if (!trips || trips.length === 0) return;
-
-    const fetchAllRequests = async () => {
-      const newMap: Record<string, RequestItem[]> = {};
-      for (const trip of trips) {
-        if (!trip.requestIds || trip.requestIds.length === 0) continue;
-
-        const requests: RequestItem[] = [];
-        for (const reqId of trip.requestIds) {
-          const reqDoc = await getDoc(doc(firebaseFirestore, "requests", reqId));
-          if (reqDoc.exists()) {
-            const data = reqDoc.data();
-            requests.push({ passengers: Array.isArray(data.passengers) ? data.passengers : [] });
-          }
-        }
-        // ⭐ Use tripCode as key
-        newMap[trip.tripCode] = requests;
-      }
-      if (mounted) {
-        setTripRequestsMap(newMap);
-        setLoadingPassengers(false);
-      }
-    };
-
-    fetchAllRequests();
-    return () => { mounted = false; };
-  }, [trips]);
-  // ⭐ ADDED END
-
-  // ⭐ ADDED START - Helper function to get passengers by tripCode
-  const getPassengersList = (trip: Trip): string => {
-    if (loadingPassengers) return "Loading...";
-    const requests = tripRequestsMap[trip.tripCode];
-    if (!requests || requests.length === 0) return "N/A";
-
-    const passengersArray: string[] = requests.flatMap(r => r.passengers ?? []);
-    const uniquePassengers = Array.from(new Set(passengersArray));
-    return uniquePassengers.join(", ") || "N/A";
-  };
-  // ⭐ ADDED END
     const filteredTrips = useMemo(() => {
         if (dateFilter === 'all') return trips;
 
@@ -197,7 +146,8 @@ export default function TripsTable({
                             <tr>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Trip Details</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Passengers</th>
+                                 {/* ADDED START - Passengers Column */}
+                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Passengers</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
@@ -207,7 +157,8 @@ export default function TripsTable({
                         <tbody>
                             {filteredTrips.map((trip, tripIndex) => {
                                 const colorScheme = pastelColors[tripIndex % pastelColors.length];
-                                
+                               
+
                                 return (
                                     <tr
                                         key={trip.id}
@@ -306,7 +257,7 @@ export default function TripsTable({
                                                 </div>
                                             )}
                                         </td>
-
+                                            
                                         {/* Personnel - Hidden on mobile */}
                                         <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
                                             {editingTripId === trip.id ? (
@@ -325,9 +276,30 @@ export default function TripsTable({
                                             )}
                                         </td>
                                         
-                                     {/* ⭐ ADDED START - Passengers */}
-                                     <td className="px-2 sm:px-3 py-1.5 text-sm border border-gray-200 hidden md:table-cell"> {getPassengersList(trip)}</td>
-                                        {/* ⭐ ADDED END */}
+                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                        {editingTripId === trip.id ? (
+                                            <input
+                                            type="text"
+                                            name="passengers"
+                                            value={Array.isArray(currentEditTripData?.passengers) 
+                                                    ? currentEditTripData.passengers.join(', ') 
+                                                    : typeof currentEditTripData?.passengers === 'string'
+                                                        ? currentEditTripData.passengers
+                                                        : ''
+                                            }
+                                            onChange={handleTripEditChange}
+                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                            placeholder="Passengers (comma-separated)"
+                                            />
+                                        ) : (
+                                            trip.passengers
+                                            ? (Array.isArray(trip.passengers)
+                                                ? trip.passengers.join(', ')
+                                                : trip.passengers.split(',').map(p => p.trim()).join(', ')
+                                            )
+                                            : 'N/A'
+                                        )}
+                                        </td>
                                         {/* Purpose - Always visible but condensed on mobile */}
                                         <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-xs ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                             {editingTripId === trip.id ? (

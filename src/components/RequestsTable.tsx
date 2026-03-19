@@ -1,4 +1,4 @@
-import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc, setDoc, collection } from "firebase/firestore";
 import { useMemo, useState } from "preact/hooks";
 import { REQUEST_STATUSES } from "../constants";
 import { useAuth } from "../contexts/AuthContext";
@@ -29,6 +29,41 @@ export default function RequestsTable({
     const { requests } = useRequests();
     const { serviceVehicles, departments } = useConstants();
 
+    // ⭐ ADDED START - Updated handleApproveClick to include passengers in trips
+    const approveRequest = async (request: Request) => {
+        if (!request.id) return;
+        setUpdatingRequestId(request.id);
+        try {
+            // 1️⃣ Update the request status to Approved
+            const requestRef = doc(db, 'requests', request.id);
+            await updateDoc(requestRef, { status: 'Approved' });
+
+            // 2️⃣ Add or update the trip in trips collection
+            const tripRef = doc(db, 'trips', request.id); // using same ID as request
+            const tripData = {
+                requestId: request.id,
+                requesterName: request.requesterName,
+                department: request.department,
+                requestedVehicle: request.requestedVehicle,
+                destination: request.destination,
+                purpose: request.purpose,
+                estimatedArrival: request.estimatedArrival || null,
+                isDriverRequested: request.isDriverRequested,
+                delegatedDriverName: request.delegatedDriverName || null,
+                passengers: request.passengers || [], // ✅ Include all passengers
+                status: 'Approved',
+                timestamp: request.timestamp || null,
+                remarks: request.remarks || '',
+            };
+            await setDoc(tripRef, tripData, { merge: true }); // merge:true para hindi mawawala ang existing fields
+
+        } catch (error) {
+            console.error("Error approving request:", error);
+        } finally {
+            setUpdatingRequestId(null);
+        }
+    };
+    // ⭐ ADDED END
  
     const filteredRequests = useMemo(() => {
         if (dateFilter === 'all') return requests;

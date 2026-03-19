@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { firebaseFirestore } from "../firebase";
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy} from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 
 interface AnalyticsProps {
@@ -15,6 +15,7 @@ type FilterType =
 
 interface MaintenanceReport {
   id: string;
+  trackingId: string;
   plateNumber: string;
   category: string;
   remarks: string;
@@ -46,8 +47,15 @@ const getVehicleStatus = (report: MaintenanceReport) => {
   return hasDefective ? "Defective" : "Good";
 };
 
+const formatTime = (timeStr?: string) => {
+  if (!timeStr) return "-";
+  const [hour, minute] = timeStr.split(":").map(Number);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minute.toString().padStart(2, "0")} ${suffix}`;
+};
 export default function Analytics({ darkMode }: AnalyticsProps) {
-  const { user, isAdmin } = useAuth(); // 🔹 Admin check
+  const { isAdmin } = useAuth(); // 🔹 Admin check
 
   // 🔹 BLOCK NON-ADMINS FROM VIEWING ENTIRE COMPONENT
   if (!isAdmin) {
@@ -80,7 +88,6 @@ export default function Analytics({ darkMode }: AnalyticsProps) {
     const q = query(
       maintenanceColRef,
       orderBy("timestamp", "desc"),
-      limit(20)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -110,7 +117,7 @@ export default function Analytics({ darkMode }: AnalyticsProps) {
 
     if (activeFilter === "Needs Refuel") {
       filtered = filtered.filter(
-        r => r.driverSection && r.driverSection.balanceTank !== undefined && Number(r.driverSection.balanceTank) < 10
+        r => r.driverSection && r.driverSection.balanceTank !== undefined && Number(r.driverSection.balanceTank) < 0.5
       );
     }
 
@@ -142,7 +149,7 @@ export default function Analytics({ darkMode }: AnalyticsProps) {
         {[
           { title: "Maintenance Reports", value: maintenanceReports.length },
           { title: "Defective Vehicles", value: maintenanceReports.filter(r => getVehicleStatus(r) === "Defective").length },
-          { title: "Needs Refuel", value: maintenanceReports.filter(r => r.driverSection && r.driverSection.balanceTank !== undefined && Number(r.driverSection.balanceTank) < 10).length },
+          { title: "Needs Refuel", value: maintenanceReports.filter(r => r.driverSection && r.driverSection.balanceTank !== undefined && Number(r.driverSection.balanceTank) < 0.5).length },
         ].map((card) => (
           <div
             key={card.title}
@@ -319,13 +326,14 @@ export default function Analytics({ darkMode }: AnalyticsProps) {
                 ) : (
                   <>
                     {/* 🔹 VIEW MODE */}
+                    <p><strong>Tracking ID:</strong> {selectedMaintenance.trackingId}</p>
                     <p><strong>Status:</strong> {selectedMaintenance.status || getVehicleStatus(selectedMaintenance)}</p>
                     <p><strong>Category:</strong> {selectedMaintenance.category}</p>
                     <p><strong>Inspector Remarks:</strong> {selectedMaintenance.inspectorRemarks || "-"}</p>
                     {selectedMaintenance.checklist?.map((item, idx) => (
                       <p key={idx}><strong>{item.label}:</strong> {item.status}</p>
                     ))}
-                    {selectedMaintenance.driverSection &&
+                    {selectedMaintenance.driverSection && 
                       Object.entries(selectedMaintenance.driverSection).map(([key, value]) => (
                         <p key={key}><strong>{key}:</strong> {value || "-"}</p>
                       ))}

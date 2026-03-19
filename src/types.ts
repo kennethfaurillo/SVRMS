@@ -39,7 +39,7 @@ export type Trip = {
   vehicleAssigned: string | null; // Vehicle assigned for the trip
   driverName?: string | null; // Optional, can be null if no driver assigned
   personnel: string[];
-  passengers?: string[];
+  passengers?: string[] | string;
   purpose: string[];
   destination: string;
   requestIds: string[];

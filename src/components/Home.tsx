@@ -2,60 +2,65 @@ import { ChartColumnIcon, ClipboardClockIcon, FileTextIcon, MapPinCheckIcon, Use
 import { useState, useEffect } from "preact/hooks";
 import type { ReactNode } from "preact/compat";
 import { Link } from "wouter-preact";
-import { collection, query, onSnapshot, doc } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, deleteDoc, orderBy, doc } from "firebase/firestore";
+import { useAuth } from "../contexts/AuthContext";
 import { firebaseFirestore } from "../firebase";
 
 const vehicleTypes = {
   "SKU 532": { description: "SKU 532" },
-  "SEH 336": { description: "Van" },
-  "TRYC. NO. 02": { description: "SIDECAR 2" },
-  "TRYC. NO. 01": { description: "SIDECAR 1" },
-   "TRYC. NO. 03": { description: "SIDECAR 3" },
-   "SBA 1406": { description: "MITSUBISHI STRADA" },
-   "SAB 6183": { description: "ISUZU VAN" },
-   "SBA 1045": { description: "MITSUBISHI STRADA" },
-   "131202": { description: "MULTICAB" },
-   "MV 291": { description: "RS 125 GRAY" },
-   "MV 231": { description: "RS 125" },
-   "131206": { description: "TRUCK" },
-   "TRYC. NO. 04": { description: "SIDECAR 4" },
-   "SAB 6182": { description: "VAN" },
-   "SAA 7857": { description: "L300" },
-   "SAA 6494": { description: "TRUCK DROP SIDE" },
-   "SEH 673": { description: "VAN" },
-   "MV 287": { description: "RS 125 BLACK" },
+  "SEH 336": { description: "SEH 336" },
+  "TRYC. NO. 02": { description: "TRYC. NO. 02" },
+  "TRYC. NO. 01": { description: "TRYC. NO. 01" },
+   "TRYC. NO. 03": { description: "TRYC. NO. 03" },
+   "SBA 1406": { description: "SBA 1406" },
+   "SAB 6183": { description: "SAB 6183" },
+   "SBA 1045": { description: "SBA 1045" },
+   "131202": { description: "131202" },
+   "MV291": { description: "MV 291" },
+   "MV231": { description: "MV 231" },
+   "131206": { description: "131206" },
+   "TRYC. NO. 04": { description: "TRYC. NO. 04" },
+   "SAB 6182": { description: "SAB 6182" },
+   "SAA 7857": { description: "SAA 7857" },
+   "SAA 6494": { description: "SAA 6494" },
+   "SEH 673": { description: "SEH 673" },
+   "MV287": { description: "MV 287" },
 };
 interface VehicleAvailabilityItem {
   plateNumber: string;
   description: string;
   status: string;
-} // ADDED END
+} 
 
 interface MaintenanceReport {
   plateNumber: string;
-  status: "Defective" | "Completed" | "Pending"; // or iba pang status na ginagamit mo
+  checklist: { id: number; label: string; status: string }[];
 }
 
 export default function Home() {
+  
+    const { isAdmin } = useAuth();
     const [showMaintenance, setShowMaintenance] = useState(false);
-   
+    const [bulletinsData, setBulletinsData] = useState<any[]>([]);
+    const [newTitle, setNewTitle] = useState("");
+    const [newDesc, setNewDesc] = useState("");
     const [availability, setAvailability] = useState<VehicleAvailabilityItem[]>([]);
     const [loadingVehicles, setLoadingVehicles] = useState(true);
      const [maintenanceReports, setMaintenanceReports] = useState<MaintenanceReport[]>([]);
   useEffect(() => {
-  const reportsRef = collection(firebaseFirestore, "maintenanceReports");
-  const unsubscribe = onSnapshot(reportsRef, (snapshot) => {
-    const reports: MaintenanceReport[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        plateNumber: data.plateNumber ?? "",
-        status: data.status ?? "Pending",
-      };
+    const reportsRef = collection(firebaseFirestore, "maintenanceReports");
+    const unsubscribe = onSnapshot(reportsRef, snapshot => {
+      const reports: MaintenanceReport[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          plateNumber: data.plateNumber ?? "",
+          checklist: data.checklist ?? [],
+        };
+      });
+      setMaintenanceReports(reports);
     });
-    setMaintenanceReports(reports);
-  });
-  return () => unsubscribe();
-}, []);
+    return () => unsubscribe();
+  }, []);
     useEffect(() => {
         const tripsRef = collection(firebaseFirestore, "trips");
         const q = query(tripsRef);
@@ -71,17 +76,21 @@ export default function Home() {
                 };
             });
 
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); 
+    const availabilityList = Object.entries(vehicleTypes).map(([plate, vehicle]) => {
+     
+      const assignedTrip = trips.find((trip) => {
+        if (!trip.plateNumber || trip.status === "Fulfilled") return false;
 
-            const availabilityList = Object.entries(vehicleTypes).map(([plate, vehicle]) => {
-                const assignedTrip = trips.find((trip) => {
-                    const tripDate = trip.dateTime ? trip.dateTime.slice(0, 10) : "";
-                    return (
-                        trip.plateNumber === plate &&
-                        tripDate === todayStr &&
-                        trip.status !== "Fulfilled"
-                    );
-                });
+        const tripDate = new Date(trip.dateTime);
+        return (
+          trip.plateNumber === plate &&
+          tripDate.getFullYear() === currentYear &&
+          tripDate.getMonth() === currentMonth
+        );
+      });
 
                 return {
                     plateNumber: plate,
@@ -99,32 +108,143 @@ export default function Home() {
         return () => unsubscribe();
     }, []);
 
-    const anyAvailable = availability.some(v => v.status === "Available");
+          useEffect(() => {
+          const q = query(
+            collection(firebaseFirestore, "bulletins"),
+            orderBy("createdAt", "desc")
+          );
+
+          const unsub = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setBulletinsData(data);
+          });
+
+          return () => unsub();
+        }, []);
+
+                const addBulletin = async () => {
+          if (!isAdmin) return;
+
+          await addDoc(collection(firebaseFirestore, "bulletins"), {
+            title: newTitle,
+            description: newDesc,
+            createdAt: new Date()
+          });
+
+          setNewTitle("");
+          setNewDesc("");
+        };
+
+          const deleteBulletin = async (id: string) => {
+            if (!isAdmin) return;
+            await deleteDoc(doc(firebaseFirestore, "bulletins", id));
+          };
+
+    const anyAvailable = availability.some(v => {
+    const defectiveReport = maintenanceReports.find(
+  r => r.plateNumber === v.plateNumber && r.checklist?.some(item => item.status === "Defective")
+);
+    return v.status === "Available" && !defectiveReport;
+  });
    
-    const bulletins = [
-  { id: 1, title: "Vehicle Maintenance Alert", description: "Check SKU 532 for oil change." },
-  { id: 2, title: "New Guidelines", description: "Submit requests 2 days in advance." },
-  { id: 3, title: "System Update", description: "Analytics module down tonight 10 PM - 12 AM." }
-];
+   
     return (
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6">
            <div className="max-w-6xl mx-auto space-y-10">
 
                   <div className="mb-10 space-y-6">
   {/* Latest Updates List */}
-  <ul className="space-y-4">
-    {bulletins.map(b => (
-      <li key={b.id} className="flex flex-col text-slate-800">
-        <div className="flex items-center gap-2 font-medium">
-          {b.title.includes("Maintenance") && <CarIcon className="w-5 h-5 text-blue-600"/>}
-          {b.title.includes("Guidelines") && <ClipboardIcon className="w-5 h-5 text-teal-600"/>}
-          {b.title.includes("Update") && <FileTextIcon className="w-5 h-5 text-amber-600"/>}
-          <span className="text-sm">{b.title}</span>
-        </div>
-        <p className="text-slate-600 text-xs ml-7 mt-1">{b.description}</p>
-      </li>
-    ))}
-  </ul>
+  
+      {isAdmin && (
+  <div className="mb-4 bg-white p-4 rounded shadow">
+    <h3 className="text-sm font-semibold mb-2">Add Bulletin</h3>
+
+    {/* Title Input */}
+    <input
+      className="border p-2 w-full mb-2 text-sm"
+      placeholder="Title"
+      value={newTitle}
+      onInput={(e: any) => setNewTitle(e.target.value)}
+    />
+
+    {/* Description Input */}
+    <textarea
+      className="border p-2 w-full mb-2 text-sm"
+      placeholder="Description"
+      value={newDesc}
+      onInput={(e: any) => setNewDesc(e.target.value)}
+    />
+
+    
+    <button
+      type="button"
+      onClick={async () => {
+        console.log("Clicked Post, isAdmin:", isAdmin);
+        if (!isAdmin) {
+          alert("Only admins can post bulletins!");
+          return;
+        }
+
+        if (!newTitle.trim() || !newDesc.trim()) {
+          alert("Please fill in both title and description.");
+          return;
+        }
+
+        try {
+          await addDoc(collection(firebaseFirestore, "bulletins"), {
+            title: newTitle.trim(),
+            description: newDesc.trim(),
+            createdAt: new Date()
+          });
+
+          // Clear inputs
+          setNewTitle("");
+          setNewDesc("");
+          alert("Bulletin posted successfully!");
+        } catch (err) {
+          console.error("Error posting bulletin:", err);
+          alert("Failed to post bulletin. Check console for details.");
+        }
+      }}
+      className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
+    >
+      Post
+    </button>
+  </div>
+)}
+
+      {/* 🔥 BULLETIN LIST */}
+      <ul className="space-y-4">
+          {bulletinsData.map(b => (
+          <li key={b.id} className="flex flex-col text-slate-800">
+
+            <div className="flex items-center gap-2 font-medium">
+             {b.title?.includes("Maintenance") && <CarIcon className="w-5 h-5 text-blue-600"/>}
+              {b.title?.includes("Guidelines") && <ClipboardIcon className="w-5 h-5 text-teal-600"/>}
+              {b.title?.includes("Update") && <FileTextIcon className="w-5 h-5 text-amber-600"/>}
+              <span className="text-sm">{b.title}</span>
+            </div>
+
+            <p className="text-slate-600 text-xs ml-7 mt-1">
+              {b.description}
+            </p>
+
+            
+           {isAdmin && bulletinsData.length > 0 && (
+            <button
+              onClick={() => deleteBulletin(b.id)}
+              className="text-red-500 text-xs ml-7 mt-1"
+            >
+              Delete
+            </button>
+          )}
+
+          </li>
+        ))}
+      </ul>
 
   {/* Status Cards Grid */}
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
@@ -218,9 +338,26 @@ export default function Home() {
      <div className="grid grid-cols-5 gap-3 w-full">
   {availability.map(v => {
     // ✅ Only one declaration
+     const normalize = (str: string) => str.replace(/\s|\./g, "").toLowerCase();
+
+    // Check if any checklist item is defective
     const defectiveReport = maintenanceReports.find(
-      r => r.plateNumber === v.plateNumber && r.status === "Defective"
+      r =>
+        normalize(r.plateNumber) === normalize(v.plateNumber) &&
+        r.checklist?.some(item => item.status === "Defective")
     );
+
+    // Determine final status
+    let finalStatus = v.status; 
+    let statusColor = "text-green-600";
+
+    if (defectiveReport) {
+      finalStatus = "Defective";
+      statusColor = "text-red-600";
+    } else if (v.status.startsWith("Assigned")) {
+      finalStatus = v.status; 
+      statusColor = "text-yellow-600";
+    }
 
     return (
       <div key={v.plateNumber} className="flex flex-col items-center bg-gray-50 p-2 rounded-lg shadow">
@@ -228,8 +365,8 @@ export default function Home() {
           {v.description.slice(0, 2)}
         </div>
         <p className="text-xs font-semibold mt-1 text-center">{v.description}</p>
-        <p className={`text-xs font-medium ${defectiveReport ? "text-red-600" : "text-green-600"}`}>
-          {defectiveReport ? "Defective" : "Available"}
+        <p className={`text-xs font-medium ${statusColor}`}>
+          {finalStatus}
         </p>
       </div>
     );

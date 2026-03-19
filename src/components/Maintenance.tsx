@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, getDocs } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
 
 interface ChecklistItem {
@@ -80,6 +80,22 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
     category === "Automotive" ? automotivePlates[0] : motorcyclePlates[0]
   );
 
+   const generateTrackingId = async (): Promise<string> => {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(2,10).replace(/-/g, ""); // e.g., "260318"
+
+    // Get current count of reports today for sequence
+    const q = query(collection(firebaseFirestore, "maintenanceReports"));
+    const snapshot = await getDocs(q);
+    const todayCount = snapshot.docs.filter(doc => {
+      const data = doc.data() as any;
+      return data.timestamp?.toDate?.()?.toISOString().slice(0,10) === today.toISOString().slice(0,10);
+    }).length;
+
+    const sequence = (todayCount + 1).toString().padStart(4, "0"); // "0005"
+    return `${dateStr}-${sequence}`; // e.g., "260318-0005"
+  };
+
   const [remarks, setRemarks] = useState("");
 
   // Driver Section Fields
@@ -113,6 +129,7 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
     setIsSubmitting(true);
 
     try {
+      const trackingId = await generateTrackingId();
       // 🔹 Convert numeric fields
       const numericBalanceTank = Number(balanceTank || 0);
       const numericAddPurchased = Number(addPurchased || 0);
@@ -124,6 +141,7 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
 
       // 🔹 FIRESTORE SAVE
       await addDoc(collection(firebaseFirestore, "maintenanceReports"), {
+        trackingId,
         category,
         plateNumber: selectedPlate,
         checklist: items,

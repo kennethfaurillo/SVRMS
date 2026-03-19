@@ -208,6 +208,11 @@ const formatDateTime = (date: Date) => {
 
     setUpdatingTripId(tripId);
     try {
+
+      const passengersArray = typeof currentEditTripData.passengers === 'string'
+            ? currentEditTripData.passengers.split(',').map(p => p.trim()).filter(p => p !== '')
+            : currentEditTripData.passengers;
+
       const dataToUpdate = {
         dateTime: currentEditTripData.dateTime,
         estimatedArrival: currentEditTripData.estimatedArrival,
@@ -216,7 +221,8 @@ const formatDateTime = (date: Date) => {
         personnel: currentEditTripData.personnel,
         purpose: currentEditTripData.purpose,
         destination: currentEditTripData.destination,
-        status: currentEditTripData.status
+        status: currentEditTripData.status,
+        passengers: passengersArray
       };
 
       await updateDoc(doc(db, 'trips', tripId), dataToUpdate);
@@ -303,6 +309,7 @@ const formatDateTime = (date: Date) => {
           vehicleAssigned: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
           driverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
           personnel: [requestToApprove.requesterName + '-' + requestToApprove.department],
+           passengers: (requestToApprove.passengers || []).map(p => p.trim()),
           purpose: [requestToApprove.purpose],
           destination: requestToApprove.destination,
           requestIds: [requestToApprove.id],
