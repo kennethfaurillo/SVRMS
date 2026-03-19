@@ -43,7 +43,7 @@ const sidebarItems: SidebarItem[] = [
   },
   { label: "Equipment Borrow", path: "/equipment-borrow", icon: <FileTextIcon stroke="white" size={20} /> },
   { label: "Analytics", path: "/analytics", icon: <ChartColumnIcon stroke="white" size={20} /> },
-  { label: "Management", path: "/management", icon: <UsersIcon stroke="white" size={20} /> },
+  
   
 ];
 
