@@ -29,6 +29,7 @@ export default function RequestsTable({
     const { requests } = useRequests();
     const { serviceVehicles, departments } = useConstants();
 
+ 
     const filteredRequests = useMemo(() => {
         if (dateFilter === 'all') return requests;
 
@@ -172,6 +173,7 @@ export default function RequestsTable({
                 requestedVehicle: requestEditData.requestedVehicle,
                 requesterName: requestEditData.requesterName,
                 department: requestEditData.department,
+                passengers: requestEditData.passengers || [],
                 isDriverRequested: requestEditData.isDriverRequested,
                 delegatedDriverName: requestEditData.delegatedDriverName ?? null,
                 purpose: requestEditData.purpose,
@@ -250,6 +252,7 @@ export default function RequestsTable({
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Request Details</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Department</th>
+                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Passengers</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
@@ -416,7 +419,13 @@ export default function RequestsTable({
                                                 </div>
                                             )}
                                         </td>
-
+                                         
+                                         <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
+                                            {request.passengers && request.passengers.length > 0
+                                                ? request.passengers.join(', ')
+                                                : <span className="text-gray-400">-</span>
+                                            }
+                                        </td>
                                         {/* Purpose of Request - Always visible but truncated on mobile */}
                                         <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                             {editingRequestId === request.id ? (

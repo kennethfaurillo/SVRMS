@@ -13,6 +13,7 @@ import {
   CarIcon,
   BikeIcon,
   DropletIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { Link, useRoute } from "wouter-preact";
 import { useAuth } from "../contexts/AuthContext";
@@ -50,7 +51,10 @@ const sidebarItems: SidebarItem[] = [
     label: "Reports",
     path: "/reports",
     icon: <ClipboardIcon stroke="white" size={20} />,
-    subItems: [{ label: "Fuel Reports", path: "/fuel-reports", icon: <DropletIcon stroke="white" size={16} /> }],
+    subItems: [
+      { label: "Fuel Reports", path: "/fuel-reports", icon: <DropletIcon stroke="white" size={16} /> },
+      { label: "Maintenance Reports", path: "/maintenance-reports", icon: <WrenchIcon stroke="white" size={16} /> }
+    ],
   },
 ];
 

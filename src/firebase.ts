@@ -21,9 +21,13 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         return userCredential.user;
-    } catch (error) {
-        throw new Error(error.message);
+    } catch (error: unknown) {
+    if (error instanceof Error) {
+        throw error;
+    } else {
+        throw new Error("Authentication failed.");
     }
+}
 }
 // Function to sign in a test user
 export const signInTestUser = async () => {
@@ -31,9 +35,13 @@ export const signInTestUser = async () => {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, 'tester@piwad.com', 'piwad123');
         return userCredential.user;
-    } catch (error) {
-        throw new Error(error.message);
+    } catch (error: unknown) {
+    if (error instanceof Error) {
+        throw error;
+    } else {
+        throw new Error("Authentication failed.");
     }
+}
 };
 // Function to sign in anonymously
 export const signInAnon = async () => {
@@ -41,9 +49,13 @@ export const signInAnon = async () => {
     try {
         const userCredential = await signInAnonymously(auth);
         return userCredential.user;
-    } catch (error) {
-        throw new Error(error.message);
+    } catch (error: unknown) {
+    if (error instanceof Error) {
+        throw error;
+    } else {
+        throw new Error("Authentication failed.");
     }
+}
 }
 
 // Utility to get current user and check if authenticated

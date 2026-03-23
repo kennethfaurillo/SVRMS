@@ -11,11 +11,15 @@ import RequestForm from './components/RequestForm';
 import RequestsTable from './components/RequestsTable';
 import Sidebar from './components/Sidebar';
 import TripsTable from './components/TripsTable';
+import Maintenance from './components/Maintenance';
+import Analytics from './components/Analytics';
 import { useAuth } from './contexts/AuthContext';
 import { firebaseFirestore } from './firebase';
 import useRequests from './hooks/useRequests';
 import useTheme from './hooks/useTheme';
 import useTrips from './hooks/useTrips';
+import FuelReports from './components/FuelReports';
+import MaintenanceReports from './components/MaintenanceReports';
 import { type Notification, type Request, type Trip } from './types';
 
 export function App() {
@@ -32,11 +36,32 @@ export function App() {
   const { trips } = useTrips(handleTripChange);
   const { user, isAdmin, signOutUser } = useAuth();
 
+  // Global Today Header
+const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+useEffect(() => {
+  const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
+  return () => clearInterval(timer);
+}, []);
+
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString('en-PH', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+};
+
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Toggle state for showing new request form
-  const [showRequestForm, setShowRequestForm] = useState(true);
+  const [showRequestForm] = useState(true);
 
   // Approve modal state
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -283,7 +308,8 @@ export function App() {
           purpose: [requestToApprove.purpose],
           destination: requestToApprove.destination,
           requestIds: [requestToApprove.id],
-          status: 'Not Fulfilled'
+          status: 'Not Fulfilled',
+          passengers: undefined
         };
         const newTripRef = doc(collection(db, 'trips'));
         batch.set(newTripRef, newTrip);
@@ -374,7 +400,7 @@ export function App() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
             <div className={'space-x-8'}>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center sm:text-left">
-                Service Vehicle Request System
+                General Service System
               </h1>
               {user && (
                 <div className={`text-xs sm:text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -479,7 +505,10 @@ export function App() {
               </span>
             </div>
           )}
-
+           
+           <div className={`mb-4 p-3 rounded-md text-center font-medium ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-blue-100 text-gray-900'}`}>
+    Today: {formatDateTime(currentDateTime)}
+  </div>
 
           <Switch>
             <Route path='/request-form'>
@@ -511,10 +540,25 @@ export function App() {
               />
             </Route>
             <Route path='/analytics'>
-              <div className={'text-center text-xl'}>
-                Coming Soon!
-              </div>
-            </Route>
+  <Analytics darkMode={darkMode} />
+</Route>
+            <Route path='/maintenance/automotive'>
+    <Maintenance category="Automotive" />
+  </Route>
+  <Route path='/maintenance/motorcycle'>
+    <Maintenance category="Motorcycle" />
+  </Route>
+  <Route path='/equipment-borrow'>
+  <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
+    <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
+  </div>
+</Route>
+            <Route path="/fuel-reports">
+  <FuelReports />
+</Route>
+            <Route path="/maintenance-reports">
+  <MaintenanceReports />
+</Route>
             <Route path='/'>
               <Home />
             </Route>
