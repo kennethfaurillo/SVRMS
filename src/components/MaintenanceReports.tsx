@@ -111,7 +111,7 @@ export default function MaintenanceReports() {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen space-y-6">
-      <h1 className="text-3xl font-bold">🛠 Maintenance Reports</h1>
+      <h1 className="text-3xl font-bold">Maintenance Reports 🛠</h1>
 
       {/* SEARCH */}
       <input
