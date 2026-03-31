@@ -68,3 +68,4 @@ export const getCurrentUser = () => {
 export const onAuthStateChangedListener = (callback: (user: User | null) => void) => {
     return onAuthStateChanged(firebaseAuth, callback);
 };
+export const db = firebaseFirestore;

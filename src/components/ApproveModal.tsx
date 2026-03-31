@@ -159,8 +159,8 @@ export default function ApproveModal({ darkMode, open, onClose, onSubmit, reques
                                 disabled
                                 required
                             />
-                            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                Auto-generated based on today's date and sequence
+                           <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                Auto-generated continuous trip code (YYMMDD-XXXX)
                             </p>
 
                             {/* Editable Trip Details for New Trip */}

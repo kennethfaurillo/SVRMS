@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import type { Department, Request, ServiceVehicle } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
-import { Timestamp } from "firebase/firestore";
+import { collection, getDocs, Timestamp } from "firebase/firestore";
 import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
 import useTrips from "../hooks/useTrips";
 import { h } from "preact";
+import { firebaseFirestore } from "../firebase";
 
 interface RequestFormProps {
     darkMode: boolean
@@ -16,6 +17,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const [requestedVehicle, setRequestedVehicle] = useState<ServiceVehicle | null>(null);
     const [hoveredVehicle, setHoveredVehicle] = useState<ServiceVehicle | null>(null);
     const [isVehicleOpen, setIsVehicleOpen] = useState(false);
+    const [defectiveVehicles, setDefectiveVehicles] = useState<string[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);   
     const [purpose, setPurpose] = useState('');
     const [destination, setDestination] = useState('');
@@ -37,6 +39,21 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
 
     const unavailableVehicles = todayTrips.map(trip => [trip.vehicleAssigned, trip.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
     const [passengers, setPassengers] = useState<string[]>(['']);
+    useEffect(() => {
+  const fetchDefectiveVehicles = async () => {
+    try {
+      const snapshot = await getDocs(collection(firebaseFirestore, "maintenanceReports"));
+      const defective = snapshot.docs
+        .filter(doc => doc.data().status === "Defective") // kunin lang yung defective
+        .map(doc => doc.data().vehicleName as string);
+      setDefectiveVehicles(defective);
+    } catch (error) {
+      console.error("Error fetching defective vehicles:", error);
+      setDefectiveVehicles([]);
+    }
+  };
+  fetchDefectiveVehicles();
+}, []);
     useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -164,20 +181,24 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
             {isVehicleOpen && (
               <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto bg-white border rounded shadow-lg">
                 {serviceVehicles.map(vehicle => {
-                  const vehicleUnavailable = unavailableVehicles.find(uv => uv[0] === vehicle.name);
-                  const isUnavailable = !!vehicleUnavailable;
+                  const isUnavailable = unavailableVehicles.find(uv => uv[0] === vehicle.name);
+                  const isDefective = defectiveVehicles.includes(vehicle.name);
                   return (
                     <div
-                      key={vehicle.name}
-                      onClick={() => { setRequestedVehicle(vehicle); setIsVehicleOpen(false); }}
-                      onMouseEnter={() => setHoveredVehicle(vehicle)}
-                      onMouseLeave={() => setHoveredVehicle(null)}
-                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-100 ${isUnavailable ? "text-red-500 font-semibold" : ""}`}
+                    key={vehicle.name}
+                    onClick={() => {
+                        if (isUnavailable || isDefective) return; // BLOCK kung defective o unavailable
+                        setRequestedVehicle(vehicle);
+                        setIsVehicleOpen(false);
+                    }}
+                    onMouseEnter={() => setHoveredVehicle(vehicle)}
+                    onMouseLeave={() => setHoveredVehicle(null)}
+                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-100 
+                        ${isUnavailable || isDefective ? "text-red-500 font-semibold cursor-not-allowed" : ""}`}
                     >
-                      {vehicle.name}{" "}
-                      {vehicleUnavailable
-                     ? `(Until ${new Date(vehicleUnavailable[1] as string).toLocaleTimeString()})`
-                      : ""}
+                    {vehicle.name}{" "}
+                    {isUnavailable ? `(Until ${new Date(isUnavailable[1] as string).toLocaleTimeString()})` : ""}
+                    {isDefective ? "(Defective)" : ""}
                     </div>
                   );
                 })}

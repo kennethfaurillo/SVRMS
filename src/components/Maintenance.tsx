@@ -1,6 +1,8 @@
 import { useState } from "preact/hooks";
 import { collection, addDoc, serverTimestamp, query, getDocs } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
+import SignatureCanvas from "react-signature-canvas";
+import { useRef } from "preact/hooks";
 
 interface ChecklistItem {
   id: number;
@@ -99,8 +101,6 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
   const [remarks, setRemarks] = useState("");
 
   // Driver Section Fields
-  const [departureTime, setDepartureTime] = useState("");
-  const [arrivalTime, setArrivalTime] = useState("");
   const [gasIssued, setGasIssued] = useState("");
   const [balanceTank, setBalanceTank] = useState("");
   const [addPurchased, setAddPurchased] = useState("");
@@ -115,6 +115,8 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
   const [conformedBy, setConformedBy] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const driverSigRef = useRef<any>(null);
+  const mechanicSigRef = useRef<any>(null);
 
   // 🔹 Handles Good/Defective toggle
   const handleStatusChange = (id: number, status: "Good" | "Defective") => {
@@ -138,6 +140,13 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
       const numericSpeedoStart = Number(speedoStart || 0);
       const numericSpeedoEnd = Number(speedoEnd || 0);
       const numericDistance = Number(distanceTravelled || 0);
+      const driverSignature = driverSigRef.current
+      ?.getTrimmedCanvas()
+      ?.toDataURL("image/png") || "";
+
+    const mechanicSignature = mechanicSigRef.current
+      ?.getTrimmedCanvas()
+      ?.toDataURL("image/png") || "";
 
       // 🔹 FIRESTORE SAVE
       await addDoc(collection(firebaseFirestore, "maintenanceReports"), {
@@ -147,8 +156,6 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
         checklist: items,
         remarks,
         driverSection: {
-          departureTime,
-          arrivalTime,
           gasIssued: numericBalanceTank, // 🔹 Optional: can leave as string
           balanceTank: numericBalanceTank,
           addPurchased: numericAddPurchased,
@@ -163,6 +170,8 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
         inspectedBy,
         conformedBy,
         timestamp: serverTimestamp(),
+        driverSignature,
+        mechanicSignature,
       });
 
       alert("Checklist submitted successfully!");
@@ -275,8 +284,6 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
       {/* DRIVER SECTION */}
       <h2 className="text-xl font-bold mb-2">B. To Be Filled by the Driver</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <input placeholder="Time of Departure" value={departureTime} onInput={e => setDepartureTime((e.target as HTMLInputElement).value)} className="border p-2 rounded" />
-        <input placeholder="Time of Arrival" value={arrivalTime} onInput={e => setArrivalTime((e.target as HTMLInputElement).value)} className="border p-2 rounded" />
         <input placeholder="Gasoline Issued (Liters)" value={gasIssued} onInput={e => setGasIssued((e.target as HTMLInputElement).value)} className="border p-2 rounded" />
         <input placeholder="Balance in Tank (Liters)" value={balanceTank} onInput={e => setBalanceTank((e.target as HTMLInputElement).value)} className="border p-2 rounded" />
         <input placeholder="Add Purchased (Liters)" value={addPurchased} onInput={e => setAddPurchased((e.target as HTMLInputElement).value)} className="border p-2 rounded" />
@@ -302,19 +309,54 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
       </div>
 
       <div className="mb-6">
-        <input
-          placeholder="Inspected by (Assigned Driver)"
-          className="w-full border p-2 rounded mb-4"
-          value={inspectedBy}
-          onChange={e => setInspectedBy(e.currentTarget.value)}
-        />
-        <input
-          placeholder="Conformed by (Driver/Mechanic)"
-          className="w-full border p-2 rounded"
-          value={conformedBy}
-          onChange={e => setConformedBy(e.currentTarget.value)}
-        />
-      </div>
+       <input
+    placeholder="Inspected by (Assigned Driver)"
+    className="w-full border p-2 rounded mb-2"
+    value={inspectedBy}
+    onChange={e => setInspectedBy(e.currentTarget.value)}
+  />
+
+  {/* ✅ SIGNATURE PAD - DRIVER */}
+  <div className="mb-4">
+    <p className="text-sm mb-1">Driver Signature:</p>
+    <SignatureCanvas
+      ref={driverSigRef}
+      penColor="black"
+      canvasProps={{ width: 350, height: 150, className: "border" }}
+    />
+    <button
+      type="button"
+      onClick={() => driverSigRef.current.clear()}
+      className="text-xs text-red-500"
+    >
+      Clear Signature
+    </button>
+  </div>
+
+  <input
+    placeholder="Conformed by (Driver/Mechanic)"
+    className="w-full border p-2 rounded mb-2"
+    value={conformedBy}
+    onChange={e => setConformedBy(e.currentTarget.value)}
+  />
+
+  {/* ✅ SIGNATURE PAD - MECHANIC */}
+  <div>
+    <p className="text-sm mb-1">Mechanic Signature:</p>
+    <SignatureCanvas
+      ref={mechanicSigRef}
+      penColor="black"
+      canvasProps={{ width: 350, height: 150, className: "border" }}
+    />
+    <button
+      type="button"
+      onClick={() => mechanicSigRef.current.clear()}
+      className="text-xs text-red-500"
+    >
+      Clear Signature
+    </button>
+  </div>
+</div>
 
       {/* 🔹 Submit Button */}
       <button

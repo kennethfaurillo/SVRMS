@@ -7,6 +7,7 @@ import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
 import type { Request, RequestKey } from "../types";
 import { exportToCsv, getCurrentDate, getCurrentTime } from "../utils";
+import TripTicketModal from "./TripTicketModal";
 
 interface RequestsTableProps {
     darkMode: boolean;
@@ -23,6 +24,8 @@ export default function RequestsTable({
     // Data of request being edited
     const [requestEditData, setRequestEditData] = useState<Request | null>(null);
     // Request ID that is currently updating/processing
+    const [showTripTicket, setShowTripTicket] = useState(false);
+    const [editableRequest, setEditableRequest] = useState<Request | null>(null);
     const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const { isAdmin } = useAuth();
@@ -185,7 +188,7 @@ export default function RequestsTable({
             return newData;
         });
     };
-
+      
     // Function to save updated request
     const saveEditedRequest = async (requestId: string) => {
         console.log(requestEditData)
@@ -685,101 +688,102 @@ export default function RequestsTable({
                                             )}
                                         </td>
 
-                                        {/* Actions (Update/Save/Cancel and Delete) - Always visible for admin */}
-                                        {isAdmin &&
-                                            <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
-                                                {editingRequestId === request.id ? (
-                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
+                                       {/* Actions (Update/Save/Cancel and Delete) */}
+                                    <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
+                                        {isAdmin && (
+                                            editingRequestId === request.id ? (
+                                                // EDIT MODE (Save / Cancel)
+                                                <div className="flex flex-row gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => request.id && saveEditedRequest(request.id)}
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${updatingRequestId === request.id
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                        }`}
+                                                    >
+                                                        {updatingRequestId === request.id ? 'Saving...' : 'Save'}
+                                                    </button>
+
+                                                    <button
+                                                        onClick={cancelRequestEditing}
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${updatingRequestId === request.id
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
+                                                        }`}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                // NORMAL MODE (Update / Trip Ticket / Approve / Delete)
+                                                <div className="flex flex-row gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => handleUpdateClick(request)}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && updatingRequestId !== request.id
+                                                            ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
+                                                            : 'bg-blue-300 text-gray-200 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        Update
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditableRequest(request);
+                                                            setShowTripTicket(true);
+                                                        }}
+                                                        className="px-2 sm:px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition duration-150 ease-in-out cursor-pointer"
+                                                    >
+                                                        📋 Trip Ticket
+                                                    </button>
+
+                                                    {request.status === 'Pending' && (
                                                         <button
-                                                            onClick={() => request.id && saveEditedRequest(request.id)}
+                                                            onClick={() => handleApproveClick(request)}
                                                             disabled={updatingRequestId === request.id}
                                                             className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                }`}
+                                                            ${updatingRequestId !== request.id
+                                                                ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                : 'bg-green-300 text-gray-200 cursor-not-allowed'
+                                                            }`}
                                                         >
-                                                            <span className="hidden sm:inline">
-                                                                {updatingRequestId === request.id ? 'Saving...' : 'Save'}
-                                                            </span>
-                                                            <span className="sm:hidden">
-                                                                {updatingRequestId === request.id ? '⏳' : '💾'}
-                                                            </span>
+                                                            {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
                                                         </button>
-                                                        <button
-                                                            onClick={cancelRequestEditing}
-                                                            disabled={updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">Cancel</span>
-                                                            <span className="sm:hidden">❌</span>
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
-                                                        <button
-                                                            onClick={() => handleUpdateClick(request)}
-                                                            disabled={!isAdmin || updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => handleDeleteClick(request)}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                         ${isAdmin && updatingRequestId !== request.id
-                                                                    ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                                                                    : 'bg-blue-300 text-gray-200 cursor-not-allowed'
-                                                                }`
-                                                            }
-                                                        >
-                                                            Update
-                                                        </button>
-                                                        {
-                                                            !(isAdmin && request.status == 'Pending') ? null :
-                                                                <button
-                                                                    onClick={() => handleApproveClick(request)}
-                                                                    disabled={!isAdmin || request.status !== 'Pending' || updatingRequestId === request.id}
-                                                                    className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && request.status === 'Pending' && updatingRequestId !== request.id
-                                                                            ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                            : 'bg-green-300 text-gray-200 cursor-not-allowed'
-                                                                        }`
-                                                                    }
-                                                                    title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
-                                                                >
-                                                                    <span className="hidden sm:inline">
-                                                                        {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
-                                                                    </span>
-                                                                    <span className="sm:hidden">
-                                                                        {updatingRequestId === request.id ? '⏳' : 'Approve'}
-                                                                    </span>
-                                                                </button>
-                                                        }
-                                                        <button
-                                                            onClick={() => handleDeleteClick(request)}
-                                                            disabled={!isAdmin || updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && updatingRequestId !== request.id
-                                                                    ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
-                                                                    : 'bg-red-300 text-gray-200 cursor-not-allowed'
-                                                                }`
-                                                            }
-                                                        >
-                                                            <span className="hidden sm:inline">
-                                                                {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
-                                                            </span>
-                                                            <span className="sm:hidden">
-                                                                {updatingRequestId === request.id ? '⏳' : 'Delete'}
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        }
+                                                            ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
+                                                            : 'bg-red-300 text-gray-200 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            )
+                                        )}
+                                    </td>
                                     </tr>
                                 );
                             })}
                         </tbody>
                     </table>
+                    {showTripTicket && editableRequest?.id && (
+                    <TripTicketModal
+                        showTripTicket={showTripTicket}
+                        setShowTripTicket={setShowTripTicket}
+                        requestId={editableRequest.id} // safe na dahil may check sa above line
+                    />
+                    )}
                 </div>
             )}
         </div>

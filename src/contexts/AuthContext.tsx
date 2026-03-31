@@ -1,10 +1,19 @@
 import { onAuthStateChanged, type User } from "firebase/auth";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { firebaseAuth, signIn } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
+interface UserProfile {
+  name?: string;
+  role?: string;
+  position?: string;
+  email?: string;
+}
 // Create Auth Context
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   isAdmin: boolean;
   signInUser: (username?: string, password?: string) => Promise<void>;
   signOutUser: () => Promise<void>;
@@ -16,6 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Auth Provider Component
 export const AuthProvider: React.FC = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   // Function to sign in the test user
@@ -51,27 +61,63 @@ export const AuthProvider: React.FC = ({ children }) => {
       throw error;
     }
   };
+   // Function to fetch user profile from Firestore
+  const fetchUserProfile = async (uid: string) => {
+    try {
+      console.log("🔍 Fetching profile for UID:", uid);
+      
+      const userDoc = await getDoc(doc(db, "users", uid));
+      
+      if (userDoc.exists()) {
+        const profileData = userDoc.data();
+        console.log("✅ Profile fetched successfully:", profileData);
+        setUserProfile(profileData as UserProfile);
+      } else {
+        console.log("⚠️ No user document found for UID:", uid);
+        setUserProfile(null);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching user profile:", error);
+      setUserProfile(null);
+    }
+  };
+
   // Check the authentication state and user role
   useEffect(() => {
-    onAuthStateChanged(firebaseAuth, async (signedInUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (signedInUser) => {
       if (signedInUser) {
-        console.log("User is signed in:", signedInUser.email);
+        console.log("👤 Signed in user:", signedInUser.email, "UID:", signedInUser.uid);
+        
         setUser(signedInUser);
+        
         const token = await signedInUser.getIdTokenResult();
-        setIsAdmin(token.claims?.admin as boolean || false); // Set isAdmin based on token claims
-      } else {
+        setIsAdmin(token.claims?.admin as boolean || false);
+
+        // Fetch profile (isang beses lang)
+        await fetchUserProfile(signedInUser.uid);
+      } 
+      else {
         console.log("No user signed in, signing in as anon user");
-        await signInUser(); // Sign in as anon user
+        await signInUser();
       }
+      
       setIsLoading(false);
     });
 
-    // Sign in the user on mount
-    // (async () => await signInUser())();
+    return () => unsubscribe(); 
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, isAdmin, signInUser, signOutUser, isLoading }}>
+   return (
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        userProfile,           
+        isAdmin, 
+        signInUser, 
+        signOutUser, 
+        isLoading 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

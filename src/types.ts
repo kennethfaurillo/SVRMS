@@ -28,7 +28,19 @@ export type Request = {
   // Admin Only Fields
   issueFaced?: string;
   actionTaken?: string;
-  passengers?: string[];
+  passengers?: string[];  
+  itinerary?: {
+    destination: string;
+    time: string;
+    driverSignature?: string;
+  }[];
+  personnel?: string[]; 
+  recommendedBy?: string; 
+  approvedBy?: string; 
+  mechanicName?: string;
+  overtimeActivity?: string;
+  tripTicketNumber?: string; 
+  returnHomeTime?: string;
 }
 export type RequestKey = keyof Request;
 export type Trip = {
@@ -52,7 +64,8 @@ export type Department = {
 export type ServiceVehicle = {
   name: string,
   model?: string,
-  image?: string
+  image?: string,
+  isDefective?: boolean
 }
 export type SVRStatus = typeof REQUEST_STATUSES[number];
 export type TripStatus = typeof TRIP_STATUSES[number];
@@ -76,4 +89,36 @@ export type Driver = {
   name: string;
   status?: string; // optional, e.g., 'Active', 'Inactive'
   [key: string]: any; // allows extra fields from Firestore
+}
+export type FilterType =
+  | null
+  | "Maintenance Reports"
+  | "Defective Vehicles"
+  | "Needs Refuel";
+
+  export interface MaintenanceReport {
+  id: string;
+  trackingId: string;
+  plateNumber: string;
+  category: string;
+  remarks: string;
+  inspectedBy: string;
+  conformedBy?: string;
+  evidenceUrl?: string;
+  timestamp: any;
+  status?: string;
+  checklist?: { label: string; status: "Good" | "Defective" }[];
+  inspectorRemarks?: string;
+  driverSection?: {
+    departureTime?: string;
+    arrivalTime?: string;
+    gasIssued?: string;
+    balanceTank?: string;
+    addPurchased?: string;
+    deductUsed?: string;
+    endBalance?: string;
+    speedoStart?: string;
+    speedoEnd?: string;
+    driverRemarks?: string;
+  };
 }

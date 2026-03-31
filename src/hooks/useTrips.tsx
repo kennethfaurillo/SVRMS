@@ -66,24 +66,28 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
 // Function to generate auto-filled trip code in format YYMMDD-XXXX
 const generateTripCode = (existingTrips: Trip[]) => {
     const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const datePrefix = `${year}${month}${day}`;
+    const year = now.getFullYear().toString().slice(-2);           // 26
+    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 03
+    const day = now.getDate().toString().padStart(2, '0');         // 31
+    
+    const datePrefix = `${year}${month}${day}`;   // Example: 260331
 
-    // Find existing trip codes for today
-    const todayTripCodes = existingTrips
-        .filter(trip => trip.tripCode?.startsWith(datePrefix))
+    // Kunin ang lahat ng existing trip codes (global, hindi lang today)
+    const existingNumbers = existingTrips
         .map(trip => {
-            const sequence = trip.tripCode.split('-')[1];
-            return parseInt(sequence, 10);
+            if (!trip.tripCode) return NaN;
+            const parts = trip.tripCode.split('-');
+            return parseInt(parts[1], 10);
         })
-        .filter(num => !isNaN(num))
-        .sort((a, b) => b - a); // Sort descending
+        .filter(num => !isNaN(num));
 
-    // Get next sequence number
-    const nextSequence = todayTripCodes.length > 0 ? todayTripCodes[0] + 1 : 1;
-    const sequenceStr = nextSequence.toString().padStart(4, '0');
+    // Kunin ang pinakamataas na numero sa buong system + 1
+    const highestNumber = existingNumbers.length > 0 
+        ? Math.max(...existingNumbers) 
+        : 0;
 
-    return `${datePrefix}-${sequenceStr}`;
+    const nextNumber = highestNumber + 1;
+    const sequenceStr = nextNumber.toString().padStart(4, '0');
+
+    return `${datePrefix}-${sequenceStr}`;   // Example: 260331-0001
 };

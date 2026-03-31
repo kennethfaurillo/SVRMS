@@ -4,9 +4,6 @@ import { getCurrentDate, getCurrentTime } from "../utils";
 import { useAuth } from "../contexts/AuthContext";
 import { useConstants } from "../hooks/useConstants";
 
-
-
-
 interface TripsTableProps {
     trips: Trip[];
     darkMode: boolean;

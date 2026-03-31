@@ -50,8 +50,8 @@ const sidebarItems: SidebarItem[] = [
 export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
-  const { user, isAdmin } = useAuth();
-  const username = user?.displayName ?? user?.email;
+ const { user, isAdmin, userProfile } = useAuth();
+  const username = userProfile?.name || user?.displayName || user?.email;
 
   const toggleDropdown = (label: string) => {
     setOpenDropdowns((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -147,11 +147,15 @@ export default function Sidebar() {
         <div className="sm:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setMobileOpen(false)}>
           <div className="bg-blue-600 w-64 h-full p-3" onClick={(e) => e.stopPropagation()}>
             {sidebarItems.map((item) => renderItem(item, true))}
-            <div className="absolute bottom-0 w-full border-t border-white/40 p-3 flex gap-x-2 bg-blue-700">
+                        <div className="absolute bottom-0 w-full border-t border-white/40 p-3 flex gap-x-2 bg-blue-700">
               <UserIcon className="bg-blue-400 rounded-full p-1.5" stroke="white" size={32} />
               <div>
-                <div className="text-sm font-sans font-medium text-white">{username}</div>
-                <div className="text-xs text-gray-300/80">{isAdmin ? "Admin" : "User"}</div>
+                <div className="text-sm font-sans font-medium text-white">
+                  {userProfile?.name || user?.email?.split("@")[0] || "User"}
+                </div>
+                <div className="text-xs text-gray-300/80">
+                  {userProfile?.position || userProfile?.role || (isAdmin ? "Admin" : "User")}
+                </div>
               </div>
             </div>
           </div>
@@ -164,11 +168,15 @@ export default function Sidebar() {
           <HomeIcon size={24} stroke="white" /> Home
         </Link>
         <nav className="flex-1 p-2">{sidebarItems.map((item) => renderItem(item))}</nav>
-        <div className="absolute bottom-0 w-full border-t border-white/40 p-3 flex gap-x-2 bg-blue-700">
+                  <div className="absolute bottom-0 w-full border-t border-white/40 p-3 flex gap-x-2 bg-blue-700">
           <UserIcon className="bg-blue-400 rounded-full p-1.5" stroke="white" size={32} />
           <div>
-            <div className="text-sm font-sans font-medium text-white">{username}</div>
-            <div className="text-xs text-gray-300/80">{isAdmin ? "Admin" : "User"}</div>
+            <div className="text-sm font-sans font-medium text-white">
+              {userProfile?.name || user?.email?.split("@")[0] || "User"}
+            </div>
+            <div className="text-xs text-gray-300/80">
+              {userProfile?.position || userProfile?.role || (isAdmin ? "Admin" : "User")}
+            </div>
           </div>
         </div>
       </aside>
