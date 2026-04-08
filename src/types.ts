@@ -40,7 +40,7 @@ export type Request = {
   mechanicName?: string;
   overtimeActivity?: string;
   tripTicketNumber?: string; 
-  returnHomeTime?: string;
+  maintenanceReportId?: string;
 }
 export type RequestKey = keyof Request;
 export type Trip = {
@@ -56,6 +56,17 @@ export type Trip = {
   destination: string;
   requestIds: string[];
   status: TripStatus;
+  maintenanceChecked?: boolean;
+  fuelPercentageAtStart?: number;     // 0-100
+  fuelInTank?: number;                // Liters
+  needsRefuel?: boolean;
+  refuelAmount?: number;              // Liters (0 if not needed)
+  refuelRemarks?: string;
+
+  mechanicName?: string;
+  recommendedBy?: string;
+  approvedBy?: string;
+  speedometerReading?: string;
 }
 export type Department = {
   name: string,
@@ -110,15 +121,14 @@ export type FilterType =
   checklist?: { label: string; status: "Good" | "Defective" }[];
   inspectorRemarks?: string;
   driverSection?: {
-    departureTime?: string;
-    arrivalTime?: string;
-    gasIssued?: string;
-    balanceTank?: string;
-    addPurchased?: string;
-    deductUsed?: string;
-    endBalance?: string;
-    speedoStart?: string;
-    speedoEnd?: string;
+    balanceInTank?: number;
+    fuelPercentage?: number;
+   speedometerReading?: number;
     driverRemarks?: string;
+    needsRefuel?: boolean;
+    suggestedRefuelAmount?: number;
+    [key: string]: any; 
   };
+   driverSignature?: string;
+    mechanicSignature?: string;
 }

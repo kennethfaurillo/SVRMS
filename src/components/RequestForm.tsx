@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import type { Department, Request, ServiceVehicle } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import { collection, getDocs, Timestamp, query, onSnapshot, orderBy} from "firebase/firestore";
 import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
 import useTrips from "../hooks/useTrips";
@@ -17,7 +17,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const [requestedVehicle, setRequestedVehicle] = useState<ServiceVehicle | null>(null);
     const [hoveredVehicle, setHoveredVehicle] = useState<ServiceVehicle | null>(null);
     const [isVehicleOpen, setIsVehicleOpen] = useState(false);
-    const [defectiveVehicles, setDefectiveVehicles] = useState<string[]>([]);
+    const [defectiveVehicles, setDefectiveVehicles] = useState<Set<string>>(new Set());
     const dropdownRef = useRef<HTMLDivElement>(null);   
     const [purpose, setPurpose] = useState('');
     const [destination, setDestination] = useState('');
@@ -39,21 +39,41 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
 
     const unavailableVehicles = todayTrips.map(trip => [trip.vehicleAssigned, trip.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
     const [passengers, setPassengers] = useState<string[]>(['']);
-    useEffect(() => {
-  const fetchDefectiveVehicles = async () => {
-    try {
-      const snapshot = await getDocs(collection(firebaseFirestore, "maintenanceReports"));
-      const defective = snapshot.docs
-        .filter(doc => doc.data().status === "Defective") // kunin lang yung defective
-        .map(doc => doc.data().vehicleName as string);
-      setDefectiveVehicles(defective);
-    } catch (error) {
-      console.error("Error fetching defective vehicles:", error);
-      setDefectiveVehicles([]);
-    }
-  };
-  fetchDefectiveVehicles();
-}, []);
+  useEffect(() => {
+        const q = query(
+            collection(firebaseFirestore, "maintenanceReports"),
+            orderBy("timestamp", "desc")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const defectiveSet = new Set<string>();
+
+            snapshot.docs.forEach((doc) => {   // ← note: (doc) with parentheses
+                const data = doc.data();
+                const plateNumber = data.plateNumber as string;
+
+                if (!plateNumber) return;
+
+                // Check top-level status (kung may)
+                if (data.status === "Defective") {
+                    defectiveSet.add(plateNumber);
+                    return;
+                }
+
+                // Check checklist items
+                const checklist = data.checklist as Array<{ status?: "Good" | "Defective" }> | undefined;
+                const hasDefectiveItem = checklist?.some(item => item.status === "Defective");
+
+                if (hasDefectiveItem) {
+                    defectiveSet.add(plateNumber);
+                }
+            });
+
+            setDefectiveVehicles(defectiveSet);
+        });
+
+        return () => unsubscribe();
+    }, []);
     useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -166,44 +186,46 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                     </div>
 
                     {/* Service Vehicle */}
-                    <div className="flex flex-col space-y-2 relative" ref={dropdownRef}>
-            <label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              Service Vehicle *
-            </label>
-            <div
-              className={`px-3 py-2 text-sm border rounded cursor-pointer ${darkMode ? "bg-gray-600 text-white border-gray-500" : "bg-white border-gray-300"}`}
-              onClick={() => setIsVehicleOpen(!isVehicleOpen)}
-            >
-              {requestedVehicle?.name || "Select Service Vehicle"}
-            </div>
+                   <div className="flex flex-col space-y-2 relative" ref={dropdownRef}>
+                        <label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                            Service Vehicle *
+                        </label>
+                        <div
+                            className={`px-3 py-2 text-sm border rounded cursor-pointer ${darkMode ? "bg-gray-600 text-white border-gray-500" : "bg-white border-gray-300"} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => !isLoading && setIsVehicleOpen(!isVehicleOpen)}
+                        >
+                            {requestedVehicle?.name || "Select Service Vehicle"}
+                        </div>
 
-            {/* Dropdown list */}
-            {isVehicleOpen && (
-              <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto bg-white border rounded shadow-lg">
-                {serviceVehicles.map(vehicle => {
-                  const isUnavailable = unavailableVehicles.find(uv => uv[0] === vehicle.name);
-                  const isDefective = defectiveVehicles.includes(vehicle.name);
-                  return (
-                    <div
-                    key={vehicle.name}
-                    onClick={() => {
-                        if (isUnavailable || isDefective) return; // BLOCK kung defective o unavailable
-                        setRequestedVehicle(vehicle);
-                        setIsVehicleOpen(false);
-                    }}
-                    onMouseEnter={() => setHoveredVehicle(vehicle)}
-                    onMouseLeave={() => setHoveredVehicle(null)}
-                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-100 
-                        ${isUnavailable || isDefective ? "text-red-500 font-semibold cursor-not-allowed" : ""}`}
-                    >
-                    {vehicle.name}{" "}
-                    {isUnavailable ? `(Until ${new Date(isUnavailable[1] as string).toLocaleTimeString()})` : ""}
-                    {isDefective ? "(Defective)" : ""}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        {/* Dropdown list */}
+                        {isVehicleOpen && (
+                            <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto bg-white border rounded shadow-lg dark:bg-gray-800 dark:border-gray-600">
+                                {serviceVehicles.map(vehicle => {
+                                    const isUnavailable = unavailableVehicles.some(uv => uv[0] === vehicle.name);
+                                    const isDefective = defectiveVehicles.has(vehicle.name);
+                                    const isBlocked = isUnavailable || isDefective;
+
+                                    return (
+                                        <div
+                                            key={vehicle.name}
+                                            onClick={() => {
+                                                if (isBlocked || isLoading) return;
+                                                setRequestedVehicle(vehicle);
+                                                setIsVehicleOpen(false);
+                                            }}
+                                            onMouseEnter={() => setHoveredVehicle(vehicle)}
+                                            onMouseLeave={() => setHoveredVehicle(null)}
+                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-700
+                                                ${isBlocked ? "text-red-500 font-semibold cursor-not-allowed opacity-75" : "hover:text-blue-600"}`}
+                                        >
+                                            {vehicle.name}
+                                            {isUnavailable && ` (Until ${new Date(unavailableVehicles.find(uv => uv[0] === vehicle.name)?.[1] as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+                                            {isDefective && " — DEFECTIVE"}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
 
             {/* Hover image preview */}
             {hoveredVehicle?.image && isVehicleOpen && (
@@ -213,7 +235,11 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
             )}
           </div>
         </div>
-
+                {defectiveVehicles.size > 0 && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                ⚠️ Vehicles marked as DEFECTIVE from Maintenance Report cannot be selected.
+                            </p>
+                        )}
                 {/* Second row - Driver Required, Purpose, Destination */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Driver Request */}

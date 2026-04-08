@@ -67,27 +67,26 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
 const generateTripCode = (existingTrips: Trip[]) => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);           // 26
-    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 03
-    const day = now.getDate().toString().padStart(2, '0');         // 31
+    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 04
+    const day = now.getDate().toString().padStart(2, '0');         // 08
     
-    const datePrefix = `${year}${month}${day}`;   // Example: 260331
+    const datePrefix = `${year}${month}${day}`;   // 260408
 
-    // Kunin ang lahat ng existing trip codes (global, hindi lang today)
+    
     const existingNumbers = existingTrips
+        .filter(trip => trip.tripCode?.startsWith(datePrefix + "-"))
         .map(trip => {
-            if (!trip.tripCode) return NaN;
-            const parts = trip.tripCode.split('-');
-            return parseInt(parts[1], 10);
+            const sequencePart = trip.tripCode.split('-')[1];
+            return parseInt(sequencePart, 10);
         })
         .filter(num => !isNaN(num));
 
-    // Kunin ang pinakamataas na numero sa buong system + 1
     const highestNumber = existingNumbers.length > 0 
         ? Math.max(...existingNumbers) 
         : 0;
 
     const nextNumber = highestNumber + 1;
-    const sequenceStr = nextNumber.toString().padStart(4, '0');
+    const sequenceStr = nextNumber.toString().padStart(6, '0');   // 000001
 
-    return `${datePrefix}-${sequenceStr}`;   // Example: 260331-0001
+    return `${datePrefix}-${sequenceStr}`;   // 260408-000001
 };

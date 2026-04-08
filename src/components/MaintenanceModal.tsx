@@ -3,15 +3,16 @@ import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
 import type { FilterType, MaintenanceReport } from "../types";
 
+
 /* =========================
    PROPS
 ========================= */
 interface Props {
   darkMode: boolean;
-  activeFilter: FilterType;
+  activeFilter: FilterType | null;
   setActiveFilter: React.Dispatch<React.SetStateAction<FilterType>>;
   reports: MaintenanceReport[];
-  getVehicleStatus: (r: MaintenanceReport) => string;
+  getVehicleStatus: (report: MaintenanceReport) => string;
 }
 
 /* =========================
@@ -28,7 +29,14 @@ export default function MaintenanceModal({
     useState<MaintenanceReport | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
-  
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const updateField = (field: string, value: any) => {
+  setSelectedMaintenance((prev: any) => ({
+    ...prev,
+    ...prev,
+    [field]: value,
+  }));
+};
   const filteredReports = reports;
 
   if (!activeFilter) return null;
@@ -101,7 +109,10 @@ export default function MaintenanceModal({
               {filteredReports.map((m) => (
                 <div
                   key={m.id || m.plateNumber}
-                  onClick={() => setSelectedMaintenance(m)}
+                 onClick={() => {
+                  setSelectedMaintenance(m);
+                  setIsDetailModalOpen(true);
+                }}
                   style={{
                     padding: "16px",
                     borderRadius: "10px",
@@ -137,176 +148,203 @@ export default function MaintenanceModal({
             </div>
           )}
 
-          {/* DETAILS SECTION */}
-          {selectedMaintenance && (
-            <div style={{ 
-              marginTop: "28px", 
-              padding: "24px", 
-              background: darkMode ? "#111827" : "#f9fafb", 
-              borderRadius: "10px",
-              border: darkMode ? "1px solid #374151" : "1px solid #e5e7eb"
-            }}>
-              <h3 style={{ margin: "0 0 20px 0", fontSize: "22px", color: darkMode ? "#fff" : "#111827" }}>
-                {selectedMaintenance.plateNumber}
-              </h3>
+        {isDetailModalOpen && selectedMaintenance && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10000,
+    }}
+    onClick={() => setIsDetailModalOpen(false)}
+  >
+    <div
+      style={{
+        width: "90%",
+        maxWidth: "900px",
+        background: darkMode ? "#111827" : "#fff",
+        borderRadius: "12px",
+        padding: "20px",
+        maxHeight: "90vh",
+        overflowY: "auto",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
 
-              {/* =========================
-                  EDIT MODE
-              ========================= */}
-              {isEditing ? (
-                <>
-                  <input
-                    type="text"
-                    className="border p-2 rounded w-full my-2"
-                    value={selectedMaintenance.inspectorRemarks || ""}
-                    placeholder="Inspector Remarks"
-                    onInput={(e: Event) =>
-                      setSelectedMaintenance({
-                        ...selectedMaintenance,
-                        inspectorRemarks: (e.target as HTMLInputElement).value,
-                      })
-                    }
-                  />
+      {/* HEADER */}
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h2>{selectedMaintenance.plateNumber}</h2>
+        <button onClick={() => setIsDetailModalOpen(false)}>✕</button>
+      </div>
 
-                  <select
-                    className="border p-2 rounded w-full my-2"
-                    value={
-                      selectedMaintenance.status ||
-                      getVehicleStatus(selectedMaintenance)
-                    }
-                    onChange={(e: Event) =>
-                      setSelectedMaintenance({
-                        ...selectedMaintenance,
-                        status: (e.target as HTMLSelectElement).value as "Good" | "Defective",
-                      })
-                    }
-                  >
-                    <option value="Good">Good</option>
-                    <option value="Defective">Defective</option>
-                  </select>
+      {/* BASIC INFO */}
+      <div style={{ marginTop: "20px", display: "grid", gap: "8px" }}>
+        <p><strong>Tracking ID:</strong> {selectedMaintenance.trackingId}</p>
 
-                  {selectedMaintenance.checklist?.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 my-1">
-                      <span>{item.label}:</span>
-                      <select
-                        value={item.status}
-                        onChange={(e: Event) => {
-                          const updated = [...(selectedMaintenance.checklist || [])];
-                          updated[idx].status = (e.target as HTMLSelectElement).value as "Good" | "Defective";
-                          setSelectedMaintenance({
-                            ...selectedMaintenance,
-                            checklist: updated,
-                          });
-                        }}
-                        className="border p-1 rounded"
-                      >
-                        <option value="Good">Good</option>
-                        <option value="Defective">Defective</option>
-                      </select>
-                    </div>
-                  ))}
+       <p>
+  <strong>Status:</strong>{" "}
+  {isEditing ? (
+    <select
+      value={selectedMaintenance.status}
+      onChange={(e: any) =>
+        updateField("status", e.target.value)
+      }
+    >
+      <option value="Good">Good</option>
+      <option value="Defective">Defective</option>
+    </select>
+  ) : (
+    selectedMaintenance.status || getVehicleStatus(selectedMaintenance)
+  )}
+</p>
+        <p><strong>Category:</strong> {selectedMaintenance.category}</p>
 
-                  {selectedMaintenance.driverSection &&
-                    Object.entries(selectedMaintenance.driverSection).map(
-                      ([key, value]) => (
-                        <div key={key} className="my-1">
-                          <label className="mr-2">{key}:</label>
-                          <input
-                            type="text"
-                            value={value || ""}
-                            onInput={(e: Event) =>
-                              setSelectedMaintenance({
-                                ...selectedMaintenance,
-                                driverSection: {
-                                  ...selectedMaintenance.driverSection,
-                                  [key]: (e.target as HTMLInputElement).value,
-                                },
-                              })
-                            }
-                            className="border p-1 rounded w-1/2"
-                          />
-                        </div>
-                      )
-                    )}
+        <p>
+          <strong>Inspected By:</strong>{" "}
+          {selectedMaintenance.inspectedBy || "—"}
+        </p>
 
-                  {/* ACTIONS */}
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600"
-                      onClick={async () => {
-                        await updateDoc(
-                          doc(firebaseFirestore, "maintenanceReports", selectedMaintenance.id),
-                          { ...selectedMaintenance }
-                        );
-                        alert("Maintenance report updated!");
-                        setIsEditing(false);
-                      }}
-                    >
-                      Save
-                    </button>
+        <p>
+          <strong>Conformed By:</strong>{" "}
+          {selectedMaintenance.conformedBy || "—"}
+        </p>
 
-                    <button
-                      className="px-4 py-2 rounded bg-gray-400 text-white hover:bg-gray-500"
-                      onClick={() => setIsEditing(false)}
-                    >
-                      Cancel
-                    </button>
+        <p>
+  <strong>Inspector Remarks:</strong>{" "}
+  {isEditing ? (
+    <input
+      value={selectedMaintenance.inspectorRemarks || ""}
+      onInput={(e: any) =>
+        updateField("inspectorRemarks", e.target.value)
+      }
+    />
+  ) : (
+    selectedMaintenance.inspectorRemarks || selectedMaintenance.remarks || "-"
+  )}
+</p>
+      </div>
 
-                    <button
-                      className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
-                      onClick={async () => {
-                        if (!confirm("Are you sure you want to delete this maintenance report?")) return;
-                        await deleteDoc(
-                          doc(firebaseFirestore, "maintenanceReports", selectedMaintenance.id)
-                        );
-                        setSelectedMaintenance(null);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </>
-              ) : (
-                /* =========================
-                    VIEW MODE
-                ========================= */
-                <>
-                  <p>
-                    <strong>Tracking ID:</strong>{" "}
-                    {selectedMaintenance.trackingId}
-                  </p>
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    {selectedMaintenance.status || getVehicleStatus(selectedMaintenance)}
-                  </p>
-                  <p>
-                    <strong>Category:</strong> {selectedMaintenance.category}
-                  </p>
-                  <p>
-                    <strong>Inspector Remarks:</strong>{" "}
-                    {selectedMaintenance.inspectorRemarks || "-"}
-                  </p>
+      <hr style={{ margin: "16px 0" }} />
 
-                  {selectedMaintenance.checklist?.map((item, idx) => (
-                    <p key={idx}>
-                      <strong>{item.label}:</strong> {item.status}
-                    </p>
-                  ))}
+      {/* CHECKLIST */}
+      <h3>Checklist</h3>
+      <div style={{ display: "grid", gap: "8px" }}>
+        {selectedMaintenance.checklist?.map((item, idx) => (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "8px",
+              background: darkMode ? "#1f2937" : "#f3f4f6",
+              borderRadius: "6px",
+            }}
+          >
+            <span>{item.label}</span>
+            {isEditing ? (
+  <select
+    value={item.status}
+    onChange={(e: any) => {
+      const updated = (selectedMaintenance.checklist || []).map((c, i) =>
+        i === idx ? { ...c, status: e.target.value } : c
+      );
 
-                  {selectedMaintenance.driverSection &&
-                    Object.entries(selectedMaintenance.driverSection).map(
-                      ([key, value]) => (
-                        <p key={key}>
-                          <strong>{key}:</strong> {value || "-"}
-                        </p>
-                      )
-                    )}
+      updateField("checklist", updated);
+    }}
+  >
+    <option value="Good">Good</option>
+    <option value="Defective">Defective</option>
+  </select>
+) : (
+  <strong>{item.status}</strong>
+)}
+          </div>
+        ))}
+      </div>
 
-                  {/* ACTIONS */}
+      <hr style={{ margin: "16px 0" }} />
+
+      {/* DRIVER SECTION */}
+      <h3>Driver Section</h3>
+      {selectedMaintenance.driverSection &&
+        Object.entries(selectedMaintenance.driverSection).map(([key, value]) => (
+          <p>
+        <strong>{key}:</strong>{" "}
+        {isEditing ? (
+          <input
+            value={value || ""}
+            onInput={(e: any) => {
+              updateField("driverSection", {
+                ...selectedMaintenance.driverSection,
+                [key]: e.target.value,
+              });
+            }}
+          />
+        ) : (
+          value || "-"
+        )}
+</p>
+        ))}
+
+      <hr style={{ margin: "16px 0" }} />
+
+      {/* SIGNATURES (IMPORTANT RESTORED) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+
+        <div>
+          <p><strong>Driver Signature</strong></p>
+          {selectedMaintenance.driverSignature?.startsWith("data:image") ? (
+            <img
+              src={selectedMaintenance.driverSignature}
+              style={{ width: "100%", borderRadius: "8px", border: "1px solid #ddd" }}
+            />
+          ) : (
+            <div style={{ padding: "20px", border: "1px dashed #ccc" }}>
+              No signature
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p><strong>Mechanic Signature</strong></p>
+          {selectedMaintenance.mechanicSignature?.startsWith("data:image") ? (
+            <img
+              src={selectedMaintenance.mechanicSignature}
+              style={{ width: "100%", borderRadius: "8px", border: "1px solid #ddd" }}
+            />
+          ) : (
+            <div style={{ padding: "20px", border: "1px dashed #ccc" }}>
+              No signature
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* FOOTER */}
+       {/* ACTIONS */}
                   <div className="flex gap-3 mt-4">
                     <button
                       className="px-4 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600"
-                      onClick={() => setIsEditing(true)}
+                     onClick={async () => {
+                      if (!selectedMaintenance) return;
+
+                      if (isEditing) {
+                        const { id, ...data } = selectedMaintenance;
+
+                        await updateDoc(
+                          doc(firebaseFirestore, "maintenanceReports", id),
+                          data
+                        );
+
+                        setIsEditing(false);
+                      } else {
+                        setIsEditing(true);
+                      }
+                    }}
                     >
                       Update
                     </button>
@@ -325,16 +363,16 @@ export default function MaintenanceModal({
                         await deleteDoc(
                           doc(firebaseFirestore, "maintenanceReports", selectedMaintenance.id)
                         );
-                        setSelectedMaintenance(null);
+                       setIsEditing(false);
+                       setIsDetailModalOpen(false);
                       }}
                     >
                       Delete
                     </button>
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                </div>
+              </div>
+            )}
         </div>
       </div>
     </div>
