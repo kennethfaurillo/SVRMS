@@ -1,13 +1,10 @@
+// src/hooks/useTrips.ts
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
 import { firebaseAuth, firebaseFirestore } from "../firebase";
 import type { Trip } from "../types";
 
-/**
- * Custom hook to manage trips in the application.
- * Provides functionality to fetch and manage trips from Firestore.
- */
 export default function useTrips(
   onTripChange?: (type: 'added' | 'modified' | 'removed', trip: Trip) => void
 ) {
@@ -17,69 +14,135 @@ export default function useTrips(
 
   const [trips, setTrips] = useState<Trip[]>([]);
 
-  // Auto-generated trip code for new trips
   const newTripCode = useMemo(() => generateTripCode(trips), [trips]);
 
-  // Filter trips for today only
   const todayTrips = useMemo(() => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     return trips.filter(trip => {
-      if (!trip.dateTime) return false;
-      const tripDate = new Date(trip.dateTime);
-      return (
-        tripDate.getDate() === today.getDate() &&
-        tripDate.getMonth() === today.getMonth() &&
-        tripDate.getFullYear() === today.getFullYear()
-      );
+      if (!trip.requestedDateTime) return false;
+
+      const tripDate = new Date(trip.requestedDateTime);
+      tripDate.setHours(0, 0, 0, 0);
+
+      return tripDate.getTime() === today.getTime();
     });
   }, [trips]);
 
   useEffect(() => {
     if (!db || !auth || !user) return;
 
-    const tripsCollectionRef = collection(db, "trips");
-    const q = query(tripsCollectionRef);
+    const q = query(collection(db, "trips"));
 
     let isInitialLoad = true;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const fetchedTrips: Trip[] = snapshot.docs.map(doc => {
-          const data = doc.data() as Trip;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedTrips: Trip[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
 
-          return {
-            ...data,
-            id: doc.id,
-            // Safely handle passengers: store as array, join for display
-            passengers: Array.isArray(data.passengers) ? data.passengers.join(", ") : data.passengers ?? "",
-          };
-        });
+        // ================= STRICT: requestedDateTime ONLY =================
+        let fuelSlipDate = "";
+        let timestamp: number | undefined;
 
-        // Sort trips by tripCode descending (most recent first)
-        fetchedTrips.sort((a, b) => (b.tripCode || "").localeCompare(a.tripCode || ""));
+        const dateField = data.requestedDateTime;
 
-        setTrips(fetchedTrips);
+        if (dateField) {
+          let parsedDate: Date | null = null;
 
-        // Call onTripChange for incremental updates
-        if (!isInitialLoad && onTripChange) {
-          snapshot.docChanges().forEach(change => {
-            const data = change.doc.data() as Trip;
-            const trip = {
-              ...data,
-              id: change.doc.id,
-              passengers: Array.isArray(data.passengers) ? data.passengers.join(", ") : data.passengers ?? "",
-            };
-            onTripChange(change.type, trip);
-          });
+          if (dateField?.toDate && typeof dateField.toDate === "function") {
+            parsedDate = dateField.toDate();
+          } else {
+            parsedDate = new Date(dateField);
+          }
+
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            const year = parsedDate.getFullYear();
+            const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+            const day = String(parsedDate.getDate()).padStart(2, "0");
+
+            fuelSlipDate = `${year}-${month}-${day}`;
+            timestamp = parsedDate.getTime();
+          }
         }
 
-        isInitialLoad = false;
-      },
-      (error) => {
-        console.error("Error fetching trips:", error);
+        return {
+          ...data,
+          id: doc.id,
+
+          driver: data.driverName ?? "",
+          passengers: Array.isArray(data.passengers) ? data.passengers : [],
+          plateNumber: data.vehicleAssigned ?? "",
+          tripTicketNo: data.tripCode ?? doc.id,
+
+          fuelSlipDate, // ✅ ONLY requestedDateTime source
+
+          purpose: Array.isArray(data.purpose)
+            ? data.purpose.join(", ")
+            : data.purpose ?? "",
+
+          fuelPrice: Number(data.fuelPrice) || 0,
+          fuelQuantity: Number(data.fuelQuantity) || 0,
+          totalAmount: Number(data.totalAmount) || 0,
+
+          status: data.status ?? "",
+          description: data.description ?? "",
+          fuelType: data.fuelType ?? "",
+          requestedDateTime: data.requestedDateTime ?? null,
+        } as unknown as Trip;
+      });
+
+      fetchedTrips.sort((a, b) =>
+        (b.tripCode || "").localeCompare(a.tripCode || "")
+      );
+
+      setTrips(fetchedTrips);
+
+      if (!isInitialLoad && onTripChange) {
+        snapshot.docChanges().forEach((change) => {
+          const data = change.doc.data();
+
+          let fuelSlipDate = "";
+
+          // STRICT AGAIN
+          const dateField = data.requestedDateTime;
+
+          if (dateField) {
+            const parsedDate =
+              dateField?.toDate ? dateField.toDate() : new Date(dateField);
+
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+              fuelSlipDate = `${parsedDate.getFullYear()}-${String(
+                parsedDate.getMonth() + 1
+              ).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
+            }
+          }
+
+          const trip: Trip = {
+            ...data,
+            id: change.doc.id,
+            driver: data.driverName ?? "",
+            passengers: Array.isArray(data.passengers) ? data.passengers : [],
+            plateNumber: data.vehicleAssigned ?? "",
+            tripTicketNo: data.tripCode ?? change.doc.id,
+            fuelSlipDate, // ✅ STRICT
+            purpose: Array.isArray(data.purpose)
+              ? data.purpose.join(", ")
+              : data.purpose ?? "",
+            fuelPrice: Number(data.fuelPrice) || 0,
+            fuelQuantity: Number(data.fuelQuantity) || 0,
+            totalAmount: Number(data.totalAmount) || 0,
+            status: data.status ?? "",
+            description: data.description ?? "",
+            fuelType: data.fuelType ?? "",
+          } as unknown as Trip;
+
+          onTripChange(change.type, trip);
+        });
       }
-    );
+
+      isInitialLoad = false;
+    });
 
     return () => unsubscribe();
   }, [db, auth, user, onTripChange]);
@@ -87,26 +150,21 @@ export default function useTrips(
   return { trips, newTripCode, todayTrips };
 }
 
-// Function to generate auto-filled trip code in format YYMMDD-XXXX
+// ------------------- Generate Trip Code -------------------
 const generateTripCode = (existingTrips: Trip[]) => {
   const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const day = now.getDate().toString().padStart(2, '0');
-  const datePrefix = `${year}${month}${day}`;
+  const prefix =
+    now.getFullYear().toString().slice(-2) +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    String(now.getDate()).padStart(2, "0");
 
-  // Find existing trip codes for today
-  const todayTripCodes = existingTrips
-    .filter(trip => trip.tripCode?.startsWith(datePrefix))
-    .map(trip => {
-      const sequence = trip.tripCode?.split('-')[1];
-      return sequence ? parseInt(sequence, 10) : 0;
-    })
-    .filter(num => !isNaN(num))
-    .sort((a, b) => b - a); // Descending
+  const today = existingTrips
+    .filter(t => t.tripCode?.startsWith(prefix))
+    .map(t => parseInt(t.tripCode?.split("-")[1] || "0", 10))
+    .filter(n => !isNaN(n))
+    .sort((a, b) => b - a);
 
-  const nextSequence = todayTripCodes.length > 0 ? todayTripCodes[0] + 1 : 1;
-  const sequenceStr = nextSequence.toString().padStart(4, '0');
+  const next = (today[0] || 0) + 1;
 
-  return `${datePrefix}-${sequenceStr}`;
+  return `${prefix}-${String(next).padStart(4, "0")}`;
 };

@@ -1,4 +1,5 @@
 import type { Request } from "./types";
+import type { BorrowRequest } from "./types";
 
 type Result = {
   ok: boolean;
@@ -21,12 +22,13 @@ export const getCurrentTime = () => {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 };
-// Function to export data to CSV (after admin confirmation)
+
+// ==================== EXPORT FOR REGULAR SERVICE VEHICLE REQUESTS ====================
 export const exportToCsv = (requests: Request[]): Result => {
-  console.log('Export to CSV...')
+  console.log('Export to CSV...');
+
   if (requests.length === 0) {
-    // setMessage("No data to export.");
-    return { ok: true, message: "No data to export." }; // Indicate no data to export
+    return { ok: true, message: "No data to export." };
   }
 
   const headers = [
@@ -35,7 +37,7 @@ export const exportToCsv = (requests: Request[]): Result => {
     "Requested Date/Time", "ETA", "Status", "Remarks"
   ];
 
-  const csvRows = [];
+  const csvRows: string[] = [];
   csvRows.push(headers.join(',')); // Add header row
 
   requests.forEach(request => {
@@ -45,20 +47,18 @@ export const exportToCsv = (requests: Request[]): Result => {
       `${String(timestampDate.getHours()).padStart(2, '0')}:${String(timestampDate.getMinutes()).padStart(2, '0')}:${String(timestampDate.getSeconds()).padStart(2, '0')}`
       : 'N/A';
 
-    // Format the requested date/time from ISO string
     const requestedDateTime = request.requestedDateTime ?
       new Date(request.requestedDateTime).toLocaleString() : 'N/A';
 
-    // Format the ETA from ISO string
     const estimatedArrival = request.estimatedArrival ?
-      new Date(request.estimatedArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+      new Date(request.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
     const row = [
       `"${formattedTimestamp}"`,
-      `"${request.requestedVehicle}"`,
+      `"${request.requestedVehicle || ''}"`,
       `"${request.requesterName}"`,
       `"${request.department}"`,
-      `"${request.isDriverRequested ? 'Yes' : 'No'}"`,
+      `"${request.isDriverRequested || 'No'}"`,
       `"${request.delegatedDriverName || ''}"`,
       `"${request.purpose}"`,
       `"${request.destination}"`,
@@ -67,6 +67,7 @@ export const exportToCsv = (requests: Request[]): Result => {
       `"${request.status}"`,
       `"${request.remarks || ''}"`
     ];
+
     csvRows.push(row.join(','));
   });
 
@@ -78,6 +79,65 @@ export const exportToCsv = (requests: Request[]): Result => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  // setMessage("Requests exported to CSV successfully!");
-  return { ok: true }; // Indicate success
+
+  return { ok: true };
 };
+
+// ==================== EXPORT FOR EQUIPMENT BORROW REQUESTS ====================
+export const exportBorrowRequestsToCsv = (requests: BorrowRequest[]) => {
+  if (requests.length === 0) {
+    alert("No borrow requests to export!");
+    return;
+  }
+
+  const headers = [
+    "Request No",
+    "Date",
+    "Requestor",
+    "Purpose",
+    "Intended Period of Use",
+    "Status",
+    "Items",
+    "Date Returned",
+    "Received By",
+    "Remarks"
+  ];
+
+  const csvRows: string[] = [];
+  csvRows.push(headers.join(','));
+
+  requests.forEach((req) => {
+    // Combine all items into one readable string
+    const itemsString = req.items
+      .map((item) => 
+        `${item.particulars} (Qty: ${item.quantity})${item.remarks ? ` - ${item.remarks}` : ''}`
+      )
+      .join(" | ");
+
+    const row = [
+      `"${req.requestNo || ''}"`,
+      `"${req.date || ''}"`,
+      `"${req.requestor || ''}"`,
+      `"${req.purpose || ''}"`,
+      `"${req.period || ''}"`,
+      `"${req.status || 'Pending'}"`,
+      `"${itemsString}"`,
+      `"${req.dateReturned || ''}"`,
+      `"${req.receivedBy || ''}"`,
+      `"${req.remarks || ''}"`
+    ];
+
+    csvRows.push(row.join(','));
+  });
+
+  const csvString = csvRows.join('\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  link.href = URL.createObjectURL(blob);
+  link.download = `equipment_borrow_requests_${getCurrentDate()}.csv`;
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};   

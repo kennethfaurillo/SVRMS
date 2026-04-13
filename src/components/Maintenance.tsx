@@ -1,5 +1,6 @@
-import { useState } from "preact/hooks";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+// src/pages/Maintenance.tsx
+import { useState, useEffect } from "preact/hooks";
+import { collection, addDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
 
 interface ChecklistItem {
@@ -8,9 +9,18 @@ interface ChecklistItem {
   status?: "Good" | "Defective";
 }
 
-// Vehicle lists
+interface TripOption {
+  id: string;
+  tripTicketNo: string;
+  plateNumber: string;
+  fuelSlipDate: string;
+  driver: string;
+  timestamp: number;
+}
+
+// ================== PLATES ==================
 const automotivePlates = [
-  "SKU 532", "SAB 6183", "SAA 7857", "SAB 6182",
+  "SKU 532", "SAB 6183", "SAA 7857", "SAB 6182", "131206",
   "DOL 180", "131202", "SAA 6494", "SBA 1045", "SBA 1406", "SEH 336", "SEH 673"
 ];
 
@@ -19,7 +29,7 @@ const motorcyclePlates = [
   "TRYC. NO. 04", "MV287", "MV291", "MV231"
 ];
 
-// Checklist items
+// ================== CHECKLIST ITEMS ==================
 const automotiveItems: ChecklistItem[] = [
   { id: 1, label: "Check horn portion" },
   { id: 2, label: "Check wiper operation" },
@@ -71,135 +81,196 @@ const motorcycleItems: ChecklistItem[] = [
   { id: 25, label: "Check basic tools" },
 ];
 
-export default function Maintenance({ category }: { category: "Automotive" | "Motorcycle" }) {
-  const [items, setItems] = useState<ChecklistItem[]>(
-    category === "Automotive" ? [...automotiveItems] : [...motorcycleItems]
-  );
+export default function Maintenance({
+  category,
+}: {
+  category: "Automotive" | "Motorcycle";
+}) {
+  const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [selectedPlate, setSelectedPlate] = useState("");
+  const [selectedTripId, setSelectedTripId] = useState<string>("");
 
-  const [selectedPlate, setSelectedPlate] = useState(
-    category === "Automotive" ? automotivePlates[0] : motorcyclePlates[0]
-  );
+  const [tripOptions, setTripOptions] = useState<TripOption[]>([]);
+  const [existingMaintenance, setExistingMaintenance] = useState<string[]>([]);
 
   const [remarks, setRemarks] = useState("");
-
-  // Driver Section Fields
-  const [departureTime, setDepartureTime] = useState("");
-  const [arrivalTime, setArrivalTime] = useState("");
-  const [gasIssued, setGasIssued] = useState("");
   const [balanceTank, setBalanceTank] = useState("");
-  const [addPurchased, setAddPurchased] = useState("");
-  const [fuelPrice, setFuelPrice] = useState(""); // <-- NEW fuel price input
-  const [deductUsed, setDeductUsed] = useState("");
-  const [endBalance, setEndBalance] = useState("");
-  const [speedoStart, setSpeedoStart] = useState("");
-  const [speedoEnd, setSpeedoEnd] = useState("");
-  const [distanceTravelled, setDistanceTravelled] = useState("");
+  const [odometerReading, setOdometerReading] = useState("");
   const [driverRemarks, setDriverRemarks] = useState("");
 
   const [inspectedBy, setInspectedBy] = useState("");
   const [conformedBy, setConformedBy] = useState("");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 🔹 Handles Good/Defective toggle
+  // Fetch Trips and Existing Maintenance
+  useEffect(() => {
+    const unsubscribeTrips = onSnapshot(collection(firebaseFirestore, "trips"), (snap) => {
+      const trips: TripOption[] = snap.docs.map((doc) => {
+        const d = doc.data();
+        const tripDate = d.estimatedArrival ? new Date(d.estimatedArrival) : new Date(0);
+        
+        return {
+          id: doc.id,
+          tripTicketNo: d.tripCode || doc.id.substring(0, 8).toUpperCase(),
+          plateNumber: d.vehicleAssigned || "",
+          fuelSlipDate: tripDate.toLocaleDateString("en-CA"),
+          driver: d.driverName || "",
+          timestamp: tripDate.getTime(),
+        };
+      });
+      setTripOptions(trips);
+    });
+
+    const unsubscribeMaint = onSnapshot(collection(firebaseFirestore, "maintenanceReports"), (snap) => {
+      const maintainedIds = snap.docs
+        .map((doc) => doc.data().tripId)
+        .filter((id): id is string => typeof id === "string");
+      setExistingMaintenance(maintainedIds);
+    });
+
+    return () => {
+      unsubscribeTrips();
+      unsubscribeMaint();
+    };
+  }, []);
+
+  // Reset when category changes
+  useEffect(() => {
+    const initialItems = category === "Automotive" ? [...automotiveItems] : [...motorcycleItems];
+    setItems(initialItems.map((item) => ({ ...item, status: undefined })));
+
+    const initialPlate = category === "Automotive" ? automotivePlates[0] : motorcyclePlates[0];
+    setSelectedPlate(initialPlate);
+    setSelectedTripId("");
+  }, [category]);
+
   const handleStatusChange = (id: number, status: "Good" | "Defective") => {
-    setItems(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status } : item))
     );
   };
 
-  // 🔹 Submit form to Firestore
   const handleSubmit = async () => {
     if (isSubmitting) return;
+    if (!selectedPlate) return alert("Please select a plate number");
+    if (!items.every((i) => i.status)) return alert("Please complete all checklist items");
+
     setIsSubmitting(true);
 
     try {
-      // 🔹 Convert numeric fields
-      const numericBalanceTank = Number(balanceTank || 0);
-      const numericAddPurchased = Number(addPurchased || 0);
-      const numericFuelPrice = Number(fuelPrice || 0); // <-- convert to number
-      const numericDeductUsed = Number(deductUsed || 0);
-      const numericEndBalance = Number(endBalance || 0);
-      const numericSpeedoStart = Number(speedoStart || 0);
-      const numericSpeedoEnd = Number(speedoEnd || 0);
-      const numericDistance = Number(distanceTravelled || 0);
-
-      // 🔹 FIRESTORE SAVE
       await addDoc(collection(firebaseFirestore, "maintenanceReports"), {
         category,
         plateNumber: selectedPlate,
+        tripId: selectedTripId || null,
         checklist: items,
-        remarks,
+        remarks: remarks.trim(),
         driverSection: {
-          departureTime,
-          arrivalTime,
-          gasIssued: Number(gasIssued || 0),
-          balanceTank: numericBalanceTank,
-          addPurchased: numericAddPurchased,
-          fuelPrice: numericFuelPrice, // <-- SAVE fuel price
-          total: numericBalanceTank + numericAddPurchased,
-          deductUsed: numericDeductUsed,
-          endBalance: numericEndBalance,
-          speedoStart: numericSpeedoStart,
-          speedoEnd: numericSpeedoEnd,
-          distanceTravelled: numericDistance,
-          driverRemarks,
+          balanceTank: balanceTank ? parseFloat(balanceTank) : null,
+          odometerReading: odometerReading ? parseFloat(odometerReading) : null,
+          driverRemarks: driverRemarks.trim(),
         },
-        inspectedBy,
-        conformedBy,
+        inspectedBy: inspectedBy.trim(),
+        conformedBy: conformedBy.trim(),
         timestamp: serverTimestamp(),
       });
 
       alert("Checklist submitted successfully!");
-      window.history.back();
 
-    } catch (error) {
-      console.error("Error submitting checklist:", error);
-      alert("Error submitting checklist.");
+      // Reset form
+      setBalanceTank("");
+      setOdometerReading("");
+      setDriverRemarks("");
+      setRemarks("");
+      setInspectedBy("");
+      setConformedBy("");
+      setSelectedTripId("");
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error submitting checklist");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Determine which plate numbers to show based on category
-  const plateNumbers = category === "Automotive" ? automotivePlates : motorcyclePlates;
+  // ================== TODAY'S TRIPS ONLY FILTER ==================
+  const todayStr = new Date().toLocaleDateString("en-CA");
+
+  const availableTrips = tripOptions
+    .filter((trip) => {
+      return (
+        trip.plateNumber === selectedPlate &&           // Match selected plate
+        trip.fuelSlipDate === todayStr &&               // Only TODAY
+        !existingMaintenance.includes(trip.id)          // Not yet maintained
+      );
+    })
+    .sort((a, b) => b.timestamp - a.timestamp);         // Newest first
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex items-center mb-6 border-b pb-2">
-        <div className="flex-shrink-0">
-          <img src="/images/PIWAD-LOGO.png" alt="PIWAD Logo" className="h-20 w-auto" />
-        </div>
+        <img src="/images/PIWAD-LOGO.png" alt="PIWAD Logo" className="h-20 w-auto" />
         <div className="ml-4">
           <p className="text-sm font-semibold">Republic of the Philippines</p>
           <p className="text-lg font-bold">PILI WATER DISTRICT</p>
-          <p className="text-sm">
-            Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418
-          </p>
+          <p className="text-sm">Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418</p>
         </div>
       </div>
 
-      {/* Title + Back Button */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">CHECKLIST OF VEHICLE AND MOTORCYCLE</h1>
-        <button onClick={() => window.history.back()} className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded">
+        <button
+          onClick={() => window.history.back()}
+          className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
+        >
           Back
         </button>
       </div>
 
-      {/* Plate Number Selection */}
+      {/* Plate Number */}
       <div className="mb-6">
         <label className="font-semibold">Select Plate Number:</label>
         <select
           value={selectedPlate}
-          onChange={e => setSelectedPlate(e.currentTarget.value)}
-          className="w-full border p-2 rounded"
+          onChange={(e) => {
+            setSelectedPlate(e.currentTarget.value);
+            setSelectedTripId(""); // Reset trip when plate changes
+          }}
+          className="w-full border p-2 rounded mt-1"
         >
-          {plateNumbers.map(plate => (
-            <option key={plate} value={plate}>{plate}</option>
+          {(category === "Automotive" ? automotivePlates : motorcyclePlates).map((p) => (
+            <option key={p} value={p}>{p}</option>
           ))}
         </select>
+      </div>
+
+      {/* Trip Selection - ONLY TODAY'S UNMAINTAINED TRIPS */}
+      <div className="mb-6">
+        <label className="font-semibold block mb-1">
+          Today's Trip:
+        </label>
+        <select
+          value={selectedTripId}
+          onChange={(e) => setSelectedTripId(e.currentTarget.value)}
+          className="w-full border p-2 rounded"
+        >
+          <option value="">-- Select Trip --</option>
+          {availableTrips.length > 0 ? (
+            availableTrips.map((trip) => (
+              <option key={trip.id} value={trip.id}>
+                {trip.tripTicketNo} — {trip.fuelSlipDate} — Driver: {trip.driver || "N/A"}
+              </option>
+            ))
+          ) : (
+            <option disabled>No available trips today for this plate</option>
+          )}
+        </select>
+
+        {selectedPlate && availableTrips.length === 0 && (
+          <p className="text-orange-600 text-sm mt-2">
+            No trips are available today for plate <strong>{selectedPlate}</strong> that have not yet been checked.
+          </p>
+        )}
       </div>
 
       {/* Checklist Table */}
@@ -213,22 +284,20 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
           </tr>
         </thead>
         <tbody>
-          {items.map(item => (
+          {items.map((item) => (
             <tr key={item.id}>
               <td className="border px-2 py-1">{item.id}</td>
               <td className="border px-2 py-1">{item.label}</td>
               <td className="border text-center">
                 <input
-                  type="radio"
-                  name={`status-${item.id}`}
+                  type="checkbox"
                   checked={item.status === "Good"}
                   onChange={() => handleStatusChange(item.id, "Good")}
                 />
               </td>
               <td className="border text-center">
                 <input
-                  type="radio"
-                  name={`status-${item.id}`}
+                  type="checkbox"
                   checked={item.status === "Defective"}
                   onChange={() => handleStatusChange(item.id, "Defective")}
                 />
@@ -239,36 +308,46 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
       </table>
 
       {/* Inspector Remarks */}
-      <label className="font-semibold">Inspector Remarks:</label>
-      <textarea
-        className="w-full border rounded p-2 mb-6"
-        value={remarks}
-        onChange={e => setRemarks(e.currentTarget.value)}
-      />
+      <div className="mb-6">
+        <label className="font-semibold">Inspector Remarks:</label>
+        <textarea
+          className="w-full border rounded p-2 mt-1"
+          rows={3}
+          value={remarks}
+          onChange={(e) => setRemarks(e.currentTarget.value)}
+        />
+      </div>
 
-      {/* DRIVER SECTION */}
-      <h2 className="text-xl font-bold mb-2">B. To Be Filled by the Driver</h2>
+      {/* Driver Section */}
+      <h2 className="text-xl font-bold mb-3">B. Fuel Checklist (To Be Filled by the Driver)</h2>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <input placeholder="Time of Departure" value={departureTime} onInput={e => setDepartureTime(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Time of Arrival" value={arrivalTime} onInput={e => setArrivalTime(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Gasoline Issued (Liters)" value={gasIssued} onInput={e => setGasIssued(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Balance in Tank (Liters)" value={balanceTank} onInput={e => setBalanceTank(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Add Purchased (Liters)" value={addPurchased} onInput={e => setAddPurchased(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Fuel Price per Liter" value={fuelPrice} onInput={e => setFuelPrice(e.currentTarget.value)} className="border p-2 rounded" /> {/* NEW */}
-        <input placeholder="Deduct Used (Liters)" value={deductUsed} onInput={e => setDeductUsed(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Balance End of Trip (Liters)" value={endBalance} onInput={e => setEndBalance(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Speedometer Start (kms)" value={speedoStart} onInput={e => setSpeedoStart(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Speedometer End (kms)" value={speedoEnd} onInput={e => setSpeedoEnd(e.currentTarget.value)} className="border p-2 rounded" />
-        <input placeholder="Distance Travelled (kms)" value={distanceTravelled} onInput={e => setDistanceTravelled(e.currentTarget.value)} className="border p-2 rounded" />
+        <input
+          type="number"
+          step="0.01"
+          placeholder="Balance in Tank (Liters)"
+          value={balanceTank}
+          onChange={(e) => setBalanceTank(e.currentTarget.value)}
+          className="border p-2 rounded"
+        />
+        <input
+          type="number"
+          placeholder="Odometer Reading (kms)"
+          value={odometerReading}
+          onChange={(e) => setOdometerReading(e.currentTarget.value)}
+          className="border p-2 rounded"
+        />
       </div>
 
       <textarea
         placeholder="Driver Remarks"
         className="w-full border rounded p-2 mb-6"
+        rows={3}
         value={driverRemarks}
-        onChange={e => setDriverRemarks(e.currentTarget.value)}
+        onChange={(e) => setDriverRemarks(e.currentTarget.value)}
       />
 
+      {/* Reminder */}
       <div className="p-4 bg-yellow-100 border-l-4 border-yellow-500 mb-6">
         <strong>IMPORTANT REMINDER:</strong>{" "}
         {category === "Automotive"
@@ -276,29 +355,31 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
           : "Cleanliness of Service Motorcycle and Trimobile."}
       </div>
 
-      <div className="mb-6">
+      {/* Signatories */}
+      <div className="mb-6 space-y-4">
         <input
           placeholder="Inspected by (Assigned Driver)"
-          className="w-full border p-2 rounded mb-4"
+          className="w-full border p-2 rounded"
           value={inspectedBy}
-          onChange={e => setInspectedBy(e.currentTarget.value)}
+          onChange={(e) => setInspectedBy(e.currentTarget.value)}
         />
         <input
           placeholder="Conformed by (Driver/Mechanic)"
           className="w-full border p-2 rounded"
           value={conformedBy}
-          onChange={e => setConformedBy(e.currentTarget.value)}
+          onChange={(e) => setConformedBy(e.currentTarget.value)}
         />
       </div>
 
-      {/* 🔹 Submit Button */}
+      {/* Submit */}
       <button
-        type="button"
         onClick={handleSubmit}
         disabled={isSubmitting}
-        className={`px-6 py-2 rounded text-white ${isSubmitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+        className={`w-full md:w-auto px-8 py-3 rounded text-white font-medium ${
+          isSubmitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+        }`}
       >
-        {isSubmitting ? "Submitting..." : "Submit"}
+        {isSubmitting ? "Submitting..." : "Submit Checklist"}
       </button>
     </div>
   );

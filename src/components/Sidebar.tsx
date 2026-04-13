@@ -35,6 +35,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Request Form", path: "/request-form", icon: <FileTextIcon stroke="white" size={20} /> },
   { label: "Requests", path: "/requests", icon: <ClipboardClockIcon stroke="white" size={20} /> },
   { label: "Approved Trips", path: "/trips", icon: <MapPinCheckIcon stroke="white" size={20} /> },
+
   {
     label: "Maintenance",
     path: "/maintenance",
@@ -44,16 +45,46 @@ const sidebarItems: SidebarItem[] = [
       { label: "Motorcycle/Trimobile", path: "/maintenance/motorcycle", icon: <BikeIcon stroke="white" size={16} /> },
     ],
   },
-  { label: "Equipment Borrow", path: "/equipment-borrow", icon: <FileTextIcon stroke="white" size={20} /> },
+
+  // ✅ FIXED Equipment Borrow Section
+  {
+    label: "Equipment Borrow",
+    path: "/borrow-form",                    // Main dropdown label
+    icon: <FileTextIcon stroke="white" size={20} />,
+    subItems: [
+      { 
+        label: "Borrow Form", 
+        path: "/borrow-form",                // ← Dito pupunta ang BorrowersForm mo
+        icon: <FileTextIcon stroke="white" size={16} /> 
+      },
+      { 
+        label: "Borrow Requests", 
+        path: "/borrow-requests",            // ← Dito pupunta ang BorrowRequestsTable
+        icon: <ClipboardClockIcon stroke="white" size={16} /> 
+      },
+      { 
+  label: "Checklist", 
+  path: "/borrow-checklist", 
+  icon: <ClipboardIcon stroke="white" size={16} /> 
+},
+    ],
+  },
+
   { label: "Analytics", path: "/analytics", icon: <ChartColumnIcon stroke="white" size={20} /> },
   { label: "Management", path: "/management", icon: <UsersIcon stroke="white" size={20} /> },
+
   {
     label: "Reports",
     path: "/reports",
     icon: <ClipboardIcon stroke="white" size={20} />,
     subItems: [
       { label: "Fuel Reports", path: "/fuel-reports", icon: <DropletIcon stroke="white" size={16} /> },
-      { label: "Maintenance Reports", path: "/maintenance-reports", icon: <WrenchIcon stroke="white" size={16} /> }
+      { label: "Maintenance Reports", path: "/maintenance-reports", icon: <WrenchIcon stroke="white" size={16} /> },
+      {
+  label: "Borrow Report",
+  path: "/borrow-report",
+  icon: <ClipboardIcon stroke="white" size={16} />
+}
     ],
   },
 ];
@@ -71,11 +102,8 @@ export default function Sidebar() {
   const renderItem = (item: SidebarItem, isMobile = false) => {
     const [isActive] = useRoute(item.path);
     const hasSubItems = !!item.subItems?.length;
-
-    // Check if any sub-item is active
     const isSubActive = hasSubItems && item.subItems!.some((sub) => useRoute(sub.path)[0]);
 
-    // For items without subItems, just return a Link
     if (!hasSubItems) {
       return (
         <Link
@@ -92,7 +120,6 @@ export default function Sidebar() {
       );
     }
 
-    // For items with subItems (dropdown)
     return (
       <div key={item.label} className="relative">
         <div
@@ -105,17 +132,13 @@ export default function Sidebar() {
             {item.icon}
             <span className="text-white text-sm sm:text-base">{item.label}</span>
           </div>
-          <span className="text-white">{openDropdowns[item.label] ? "▾" : "▸"}</span>
+          <span className="text-white text-lg leading-none">
+            {openDropdowns[item.label] ? "▾" : "▸"}
+          </span>
         </div>
 
         {openDropdowns[item.label] && (
-          <div
-            className={`ml-4 flex flex-col ${
-              isMobile
-                ? "bg-blue-700 rounded p-1 mt-1"
-                : "absolute top-0 left-full mt-0 shadow-lg rounded-md bg-blue-700"
-            }`}
-          >
+          <div className={`ml-4 flex flex-col ${isMobile ? "bg-blue-700 rounded p-1 mt-1" : ""}`}>
             {item.subItems!.map((sub) => {
               const [isSubItemActive] = useRoute(sub.path);
               return (
@@ -170,7 +193,7 @@ export default function Sidebar() {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden sm:flex relative w-50 min-h-screen flex-col bg-blue-600">
+      <aside className="hidden sm:flex relative w-60 min-h-screen flex-col bg-blue-600">
         <Link href="/" className="p-3 border-b border-blue-700 flex items-center gap-x-2 text-white">
           <HomeIcon size={24} stroke="white" /> Home
         </Link>

@@ -20,6 +20,10 @@ import useTheme from './hooks/useTheme';
 import useTrips from './hooks/useTrips';
 import FuelReports from './components/FuelReports';
 import MaintenanceReports from './components/MaintenanceReports';
+import BorrowRequestForm from "./components/BorrowRequestForm";
+import BorrowRequestsTable from "./components/BorrowRequestsTable";
+import ItemsChecklist from "./components/ItemsChecklist"; 
+import EquipmentBorrowReport from "./components/EquipmentBorrowReport";
 import { type Notification, type Request, type Trip } from './types';
 
 export function App() {
@@ -305,11 +309,14 @@ const formatDateTime = (date: Date) => {
           vehicleAssigned: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
           driverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
           personnel: [requestToApprove.requesterName + '-' + requestToApprove.department],
-          purpose: [requestToApprove.purpose],
+          purpose: requestToApprove.purpose,
           destination: requestToApprove.destination,
           requestIds: [requestToApprove.id],
           status: 'Not Fulfilled',
-          passengers: undefined
+          passengers: undefined,
+          fuelPrice: 0,
+          tripTicketNo: '',
+          requestedDateTime: undefined
         };
         const newTripRef = doc(collection(db, 'trips'));
         batch.set(newTripRef, newTrip);
@@ -524,7 +531,7 @@ const formatDateTime = (date: Date) => {
                 handleApproveClick={handleApproveClick}
               />
             </Route>
-            <Route path='trips'>
+            <Route path='/trips'>
               <TripsTable
                 trips={trips}
                 darkMode={darkMode}
@@ -548,16 +555,23 @@ const formatDateTime = (date: Date) => {
   <Route path='/maintenance/motorcycle'>
     <Maintenance category="Motorcycle" />
   </Route>
-  <Route path='/equipment-borrow'>
-  <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
-    <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
-  </div>
-</Route>
             <Route path="/fuel-reports">
   <FuelReports />
 </Route>
             <Route path="/maintenance-reports">
   <MaintenanceReports />
+</Route>
+            <Route path="/borrow-report">
+  <EquipmentBorrowReport />
+</Route>
+            <Route path='/borrow-form'>
+    <BorrowRequestForm />
+  </Route>
+            <Route path='/borrow-requests'>
+    <BorrowRequestsTable darkMode={darkMode} />
+  </Route>
+  <Route path="/borrow-checklist">
+  <ItemsChecklist borrowRequest={null} onSubmit={() => {}} />
 </Route>
             <Route path='/'>
               <Home />
