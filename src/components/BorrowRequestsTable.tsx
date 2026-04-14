@@ -1,3 +1,4 @@
+// src/components/BorrowRequestsTable.tsx
 import { deleteDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { useAuth } from "../contexts/AuthContext";
@@ -50,7 +51,8 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
             );
 
             switch (dateFilter) {
-                case 'daily': return requestDay.getTime() === today.getTime();
+                case 'daily': 
+                    return requestDay.getTime() === today.getTime();
                 case 'weekly': {
                     const weekStart = new Date(today);
                     weekStart.setDate(today.getDate() - today.getDay());
@@ -61,7 +63,8 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                 case 'monthly':
                     return requestDate.getMonth() === now.getMonth() &&
                            requestDate.getFullYear() === now.getFullYear();
-                default: return true;
+                default: 
+                    return true;
             }
         });
     }, [borrowRequests, dateFilter]);
@@ -135,17 +138,13 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
         setUpdatingRequestId(requestId);
 
         try {
-            const updateData: Record<string, any> = {
-                status: newStatus,
-            };
+            const updateData: Record<string, any> = { status: newStatus };
 
             if (newStatus === 'Returned') {
-                updateData.returnedAt = Timestamp.now();        // ← Recommended
-                // updateData.returnedAt = serverTimestamp();   // Alternative (more accurate)
+                updateData.returnedAt = Timestamp.now();
             }
 
             await updateDoc(doc(db, 'borrowRequests', requestId), updateData);
-            
             console.log(`✅ Request ${requestId} marked as ${newStatus}`);
         } catch (error) {
             console.error("Error updating status:", error);
@@ -235,8 +234,10 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                 onClick={() => setDateFilter(filter)}
                                 className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
                                     dateFilter === filter
-                                        ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
-                                        : darkMode ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        ? 'bg-blue-600 text-white'
+                                        : darkMode 
+                                            ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' 
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                 }`}
                             >
                                 {filter === 'all' && 'All'}
@@ -321,51 +322,43 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                         {isAdmin && (
                                             <td className="px-4 py-4 border">
                                                 <div className="flex flex-wrap gap-2">
-                                                    {/* APPROVE BUTTON with Maintenance Checklist Requirement */}
-{(request.status === 'Pending' || !request.status) && (
-    <button
-        onClick={() => handleApprove(request)}
-        disabled={
-            updatingRequestId === request.id || 
-            !request.hasMaintenanceChecklist   // ← Ito ang bagong condition
-        }
-        className={`px-3 py-1 rounded text-xs font-medium transition-all ${
-            !request.hasMaintenanceChecklist 
-                ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
-                : 'bg-green-600 hover:bg-green-700 text-white'
-        }`}
-    >
-        {request.hasMaintenanceChecklist ? 'Approve' : 'Waiting for Maintenance'}
-    </button>
-)}
+                                                    {/* APPROVE BUTTON */}
+                                                    {(request.status === 'Pending' || !request.status) && (
+                                                        <button
+                                                            onClick={() => handleApprove(request)}
+                                                            disabled={updatingRequestId === request.id}
+                                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-all"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                    )}
 
+                                                    {/* RETURN / UNDO SECTION */}
                                                     {(request.status === 'Approved' || request.status === 'Returned') && (
-  <div className="flex gap-2">
+                                                        <div className="flex gap-2">
+                                                            {request.status !== 'Returned' && (
+                                                                <button
+                                                                    onClick={() => handleReturn(request)}
+                                                                    disabled={updatingRequestId === request.id}
+                                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                                >
+                                                                    Return
+                                                                </button>
+                                                            )}
 
-    {/* RETURN BUTTON (only if NOT returned yet) */}
-    {request.status !== 'Returned' && (
-      <button
-        onClick={() => handleReturn(request)}
-        disabled={updatingRequestId === request.id}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium"
-      >
-        Return
-      </button>
-    )}
+                                                            {request.status === 'Returned' && (
+                                                                <button
+                                                                    onClick={() => updateRequestStatus(request.id!, 'Approved')}
+                                                                    disabled={updatingRequestId === request.id}
+                                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium"
+                                                                >
+                                                                    Undo Return
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
 
-    {/* UNDO BUTTON (only if already returned) */}
-    {request.status === 'Returned' && (
-      <button
-        onClick={() => updateRequestStatus(request.id!, 'Approved')}
-        disabled={updatingRequestId === request.id}
-        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium"
-      >
-        Undo Return
-      </button>
-    )}
-
-  </div>
-)}
+                                                    {/* Other Action Buttons */}
                                                     <button
                                                         onClick={() => handlePrint(request.id!)}
                                                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"

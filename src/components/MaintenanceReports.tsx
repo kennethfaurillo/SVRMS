@@ -18,16 +18,8 @@ interface ChecklistItem {
 }
 
 interface DriverSection {
-  gasIssued?: number;
   balanceTank?: number;
-  addPurchased?: number;
-  deductUsed?: number;
-  endBalance?: number;
-  fuelPrice?: number;
-
-  speedoStart?: number;
-  speedoEnd?: number;
-  distanceTravelled?: number;
+  odometerReading?: number;
 }
 
 interface MaintenanceReport {
@@ -42,8 +34,7 @@ interface MaintenanceReport {
 export default function MaintenanceReports() {
   const [reports, setReports] = useState<MaintenanceReport[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
-  const [selectedReport, setSelectedReport] =
-    useState<MaintenanceReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<MaintenanceReport | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -80,13 +71,9 @@ export default function MaintenanceReports() {
     }
   };
 
-  // 🔥 GET LATEST REPORT PER VEHICLE (GLOBAL FIX)
   const vehicles = useMemo(() => {
     return Object.entries(vehicleTypes).map(([plate, info]) => {
-      const vehicleReports = reports.filter(
-        (r) => r.plateNumber === plate
-      );
-
+      const vehicleReports = reports.filter((r) => r.plateNumber === plate);
       const lastReport = vehicleReports.sort(
         (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
       )[0];
@@ -105,20 +92,21 @@ export default function MaintenanceReports() {
     v.plate.toLowerCase().includes(search.toLowerCase())
   );
 
-  const automotiveVehicles = filteredVehicles.filter(
-    (v) => v.category === "Automotive"
-  );
+  const automotiveVehicles = filteredVehicles.filter((v) => v.category === "Automotive");
+  const motorcycleVehicles = filteredVehicles.filter((v) => v.category === "Motorcycle");
 
-  const motorcycleVehicles = filteredVehicles.filter(
-    (v) => v.category === "Motorcycle"
-  );
+  // ✅ FIXED & CONSISTENT getVehicleStatus (same as Analytics)
+  const getVehicleStatus = (report?: MaintenanceReport): "Good" | "Defective" => {
+    if (!report?.checklist || report.checklist.length === 0) {
+      return "Good";
+    }
 
-  const getVehicleStatus = (report?: MaintenanceReport) => {
-    if (!report?.checklist) return "Good";
-    const critical = report.checklist.filter((i) => i.mandatory);
-    return critical.some((i) => i.status === "Defective")
-      ? "Defective"
-      : "Good";
+    // Kahit isa lang na "Defective" sa checklist → Defective na
+    const hasDefective = report.checklist.some(
+      (item) => item.status.toLowerCase() === "defective"
+    );
+
+    return hasDefective ? "Defective" : "Good";
   };
 
   const getFuelStatus = (report?: MaintenanceReport) => {
@@ -126,7 +114,6 @@ export default function MaintenanceReports() {
 
     const balanceTank =
       report.driverSection?.balanceTank ??
-      report.driverSection?.endBalance ??
       0;
 
     const plate = report.plateNumber ?? "";
@@ -152,9 +139,7 @@ export default function MaintenanceReports() {
         placeholder="Search vehicle plate..."
         className="w-full p-3 rounded border"
         value={search}
-        onInput={(e) =>
-          setSearch((e.target as HTMLInputElement).value)
-        }
+        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
       />
 
       <div className="flex flex-col md:flex-row gap-6 mt-6">
@@ -178,9 +163,7 @@ export default function MaintenanceReports() {
         </div>
 
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-4">
-            Motorcycle / Trimobile
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Motorcycle / Trimobile</h2>
           <div className="flex flex-wrap gap-4">
             {motorcycleVehicles.length ? (
               motorcycleVehicles.map((v) => (
@@ -224,13 +207,7 @@ export default function MaintenanceReports() {
 }
 
 /* ================= VEHICLE CARD ================= */
-
-function VehicleCard({
-  vehicle,
-  onClick,
-  getVehicleStatus,
-  getFuelStatus,
-}: any) {
+function VehicleCard({ vehicle, onClick, getVehicleStatus, getFuelStatus }: any) {
   const fuelData = vehicle.lastReport
     ? getFuelStatus(vehicle.lastReport).split("|")
     : null;
@@ -262,15 +239,12 @@ function VehicleCard({
         Status:{" "}
         <span
           className={
-            vehicle.lastReport &&
-            getVehicleStatus(vehicle.lastReport) === "Defective"
+            vehicle.lastReport && getVehicleStatus(vehicle.lastReport) === "Defective"
               ? "text-red-600 font-bold"
               : "text-green-600"
           }
         >
-          {vehicle.lastReport
-            ? getVehicleStatus(vehicle.lastReport)
-            : "No Data"}
+          {vehicle.lastReport ? getVehicleStatus(vehicle.lastReport) : "No Data"}
         </span>
       </p>
 
@@ -291,7 +265,6 @@ function VehicleCard({
 }
 
 /* ================= VEHICLE REPORTS MODAL ================= */
-
 function VehicleReportsModal({
   vehicle,
   reports,
@@ -320,25 +293,16 @@ function VehicleReportsModal({
               <th>Checklist</th>
             </tr>
           </thead>
-
           <tbody>
             {reports.map((r: any) => {
               const fuel = getFuelStatus(r).split("|");
-
               return (
                 <tr key={r.id}>
                   <td className="border p-2">
-                    {r.timestamp
-                      ? new Date(r.timestamp).toLocaleDateString()
-                      : "-"}
+                    {r.timestamp ? new Date(r.timestamp).toLocaleDateString() : "-"}
                   </td>
-
-                  <td className="border p-2">
-                    {getVehicleStatus(r)}
-                  </td>
-
+                  <td className="border p-2">{getVehicleStatus(r)}</td>
                   <td className="border p-2">{fuel[1]}</td>
-
                   <td className="border p-2">
                     <button
                       className="text-blue-600 underline"
@@ -358,7 +322,6 @@ function VehicleReportsModal({
 }
 
 /* ================= CHECKLIST MODAL ================= */
-
 function ChecklistModal({ report, onClose, onDelete }: any) {
   const fuel = report.driverSection;
 
@@ -383,8 +346,7 @@ function ChecklistModal({ report, onClose, onDelete }: any) {
           <div className="space-y-1 text-sm mb-6">
             {report.checklist.map((item: any, i: number) => (
               <p key={i}>
-                {item.label} -{" "}
-                <span className="font-bold">{item.status}</span>
+                {item.label} - <span className="font-bold">{item.status}</span>
               </p>
             ))}
           </div>
@@ -393,34 +355,25 @@ function ChecklistModal({ report, onClose, onDelete }: any) {
         )}
 
         <h3 className="font-bold text-lg mb-2">B. Fuel Reports</h3>
-{fuel ? (
-  <div className="space-y-1 text-sm pb-6 border-b">
-    <p>
-      Balance in Tank:{" "}
-      <span className="font-bold">
-        {fuel.balanceTank ?? 0} L
-      </span>
-    </p>
-
-    <p>
-      Odometer Reading:{" "}
-      <span className="font-bold">
-        {fuel.odometerReading ?? 0} km
-      </span>
-    </p>
-  </div>
-) : (
-  <p className="pb-6 border-b">No fuel data found.</p>
-)}
+        {fuel ? (
+          <div className="space-y-1 text-sm pb-6 border-b">
+            <p>
+              Balance in Tank:{" "}
+              <span className="font-bold">{fuel.balanceTank ?? 0} L</span>
+            </p>
+            <p>
+              Odometer Reading:{" "}
+              <span className="font-bold">{fuel.odometerReading ?? 0} km</span>
+            </p>
+          </div>
+        ) : (
+          <p className="pb-6 border-b">No fuel data found.</p>
+        )}
 
         <div className="flex justify-end gap-2 mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-300 rounded"
-          >
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
             Close
           </button>
-
           <button
             onClick={() => onDelete(report.id)}
             className="px-4 py-2 bg-red-600 text-white rounded"

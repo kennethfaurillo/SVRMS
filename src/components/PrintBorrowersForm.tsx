@@ -157,20 +157,18 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
             {/* ==================== TERMS ==================== */}
             <div className="text-xs leading-relaxed space-y-2 mb-10">
                 <p>1. This certifies that I have received the above listed Equipment/Materials completely and in good order.</p>
-                <p>2. In case of damage or loss, I shall be responsible for its repair or replacement.</p>
-                <p>3. All borrowed items must be returned in good condition.</p>
+                <p>2. In case of damage or loss, I shall be responsible for its repair or loss.</p>
             </div>
 
             {/* ==================== SIGNATURES ==================== */}
             <div className="grid grid-cols-3 gap-8 text-xs text-center mt-12">
                 <div>
                     <div className="border-b border-black w-full mb-1 h-8"></div>
-                    <p className="font-medium">Borrower Name &amp; Signature</p>
+                    <p className="font-medium">Borrower's Name &amp; Signature</p>
                 </div>
                 <div>
                     <div className="border-b border-black w-full mb-1 h-8"></div>
                     <p className="font-medium">Items Checked By</p>
-                    <p>Guard on Duty</p>
                 </div>
                 <div>
                     <div className="border-b border-black w-full mb-1 h-8"></div>
