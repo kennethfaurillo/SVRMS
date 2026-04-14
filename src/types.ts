@@ -125,6 +125,7 @@ export type Item = {
 };
 
 export type BorrowRequest = {
+  hasMaintenanceChecklist: any;
   returnDate: any;
   startDate: any;
   createdAt: any;

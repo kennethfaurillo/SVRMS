@@ -15,37 +15,49 @@ export default function useBorrowRequests() {
 
           return {
             id: doc.id,
+
+            // BASIC INFO
             requestNo: data.requestNo ?? "",
             requestor: data.requestor ?? "",
             purpose: data.purpose ?? "",
 
+            // DATES
             startDate: data.startDate ?? "",
             returnDate: data.returnDate ?? "",
+            date: data.date ?? "",
 
-            // Keep original status case
+            // STATUS
             status: data.status ?? "Pending",
 
+            // ITEMS
             items: Array.isArray(data.items) ? data.items : [],
 
-            // Keep original date objects (Timestamp or string)
+            // TIMESTAMPS
             createdAt: data.createdAt ?? null,
             timestamp: data.timestamp ?? null,
 
-            // ✅ IMPORTANT: Do NOT normalize returnedAt here
-            returnedAt: data.returnedAt ?? null, // Primary field
-            dateReturned: data.dateReturned ?? null, // Fallback (old data)
-
+            // RETURN INFO
+            returnedAt: data.returnedAt ?? null,
+            dateReturned: data.dateReturned ?? null,
             receivedBy: data.receivedBy ?? "",
+
+            // 🔥 IMPORTANT FIX (ITO ANG PROBLEMA MO)
+            hasMaintenanceChecklist: data.hasMaintenanceChecklist ?? false,
+
+            // 🔥 OPTIONAL BUT VERY USEFUL
+            checklist: Array.isArray(data.checklist) ? data.checklist : [],
+            checklistSubmittedAt: data.checklistSubmittedAt ?? null,
+
           } as unknown as BorrowRequest;
         });
 
-        // Sort newest first
+        // 🔥 SORT NEWEST FIRST
         requests.sort((a, b) => {
           const getTime = (r: BorrowRequest) => {
             const dateObj =
               (r.createdAt as any)?.toDate?.() ||
               (r.timestamp as any)?.toDate?.() ||
-              new Date(r.startDate || 0);
+              new Date(r.date || r.startDate || 0);
 
             return new Date(dateObj).getTime();
           };
@@ -53,10 +65,12 @@ export default function useBorrowRequests() {
           return getTime(b) - getTime(a);
         });
 
+        console.log("🔥 UPDATED REQUESTS:", requests); // debug
+
         setBorrowRequests(requests);
       },
       (error) => {
-        console.error("Error fetching borrow requests:", error);
+        console.error("❌ Error fetching borrow requests:", error);
       }
     );
 

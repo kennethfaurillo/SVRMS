@@ -27,7 +27,7 @@ const vehicleTypes: Record<string, { description: string; imageUrl?: string }> =
   "SAA 6494": { description: "TRUCK DROP SIDE", imageUrl: "/images/SAA 6494.jpg" },
   "SEH 673": { description: "VAN", imageUrl: "/images/SEH 673.jpg" },
   "MV 287": { description: "RS 125 BLACK", imageUrl: "/images/MV 287.jpg" },
-};
+};                
 
 interface RequestFormProps {
     darkMode: boolean
