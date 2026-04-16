@@ -5,6 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 import MaintenanceModal from "./MaintenanceModal";
 import {Chart as ChartJS,ArcElement,Tooltip,Legend,CategoryScale,LinearScale,BarElement} from "chart.js";
 import { Pie, Bar } from "react-chartjs-2";
+import useTrips from "../hooks/useTrips";
+
 
 ChartJS.register(
   ArcElement,
@@ -67,6 +69,7 @@ const formatTime = (timeStr?: string) => {
 };
 export default function Analytics({ darkMode }: AnalyticsProps) {
   const { isAdmin } = useAuth(); // 🔹 Admin check
+  const { trips } = useTrips();
 
   // 🔹 BLOCK NON-ADMINS FROM VIEWING ENTIRE COMPONENT
   if (!isAdmin) {
@@ -85,7 +88,7 @@ export default function Analytics({ darkMode }: AnalyticsProps) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [maintenanceReports, setMaintenanceReports] = useState<MaintenanceReport[]>([]);
   const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceReport | null>(null);
-  // ✅ ADDED START - VEHICLE STATUS PIE CHART
+  //  VEHICLE STATUS PIE CHART
 const vehicleStatusChart = useMemo(() => {
   let good = 0;
   let defective = 0;
@@ -107,10 +110,8 @@ const vehicleStatusChart = useMemo(() => {
     ],
   };
 }, [maintenanceReports]);
-// ✅ ADDED END
 
-
-// ✅ ADDED START - VEHICLE CATEGORY BAR CHART
+// VEHICLE CATEGORY BAR CHART
 const vehicleCategoryChart = useMemo(() => {
   if (!maintenanceReports.length) {
   return {
@@ -125,7 +126,7 @@ const vehicleCategoryChart = useMemo(() => {
     counts[category] = (counts[category] || 0) + 1;
   });
 
-  // ✅ ADDED START - FIXED SORTED BAR CHART
+  //  BAR CHART
 const sortedEntries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
 
 return {
@@ -139,19 +140,38 @@ return {
     },
   ],
 };
-// ✅ ADDED END
+
 }, [maintenanceReports]);
-// ✅ ADDED END
+
 
 const driverChart = useMemo(() => {
   const counts: Record<string, number> = {};
 
+  
   maintenanceReports.forEach((r) => {
-    const driver = r.driverSection?.driverRemarks || "Unknown Driver";
-    counts[driver] = (counts[driver] || 0) + 1;
+    let driverName = "Unknown Driver";
+
+    if (r.inspectedBy && r.inspectedBy.trim() !== "") {
+      driverName = r.inspectedBy.trim();
+    } else if (r.driverSection?.driverRemarks && r.driverSection.driverRemarks.trim() !== "") {
+      driverName = r.driverSection.driverRemarks.trim();
+    }
+
+    counts[driverName] = (counts[driverName] || 0) + 1;
   });
 
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+ 
+  trips.forEach((trip) => {
+    if (trip.driverName && trip.driverName.trim() !== "") {
+      const driverName = trip.driverName.trim();
+      counts[driverName] = (counts[driverName] || 0) + 1;
+    }
+  });
+
+  
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10); // top 10 lang para hindi masyadong mataas
 
   return {
     labels: sorted.map(([name]) => name),
@@ -159,12 +179,14 @@ const driverChart = useMemo(() => {
       {
         label: "Driver Activity (Reports)",
         data: sorted.map(([, value]) => value),
-        backgroundColor: "#f59e0b", // amber color
-        borderRadius: 6,
+        backgroundColor: "#f59e0b",
+        borderColor: "#d97706",
+        borderWidth: 2,
+        borderRadius: 8,
       },
     ],
   };
-}, [maintenanceReports]);
+}, [maintenanceReports, trips]);
 
   // ---------------- DEBOUNCE SEARCH ----------------
   useEffect(() => {
@@ -216,10 +238,10 @@ const driverChart = useMemo(() => {
         const plate = (r.plateNumber || "").toUpperCase();
         const isMotorcycle = plate.includes("TRYC") || plate.includes("MC") || plate.includes("MOTOR");
         
-        const fullTank = isMotorcycle ? 10 : 20;           // liters
-        const threshold = fullTank * 0.20;                 // 20% 
+        const fullTank = isMotorcycle ? 10 : 20;           
+        const threshold = fullTank * 0.20;                 
 
-        return balance <= threshold;                       // <= 20% na lang
+        return balance <= threshold;                       
       });
     }
 
@@ -234,15 +256,20 @@ const driverChart = useMemo(() => {
   }, [activeFilter, maintenanceReports, debouncedSearch]);
 
   // ---------------- RETURN UI ----------------
-  return (
-    <div className={`p-6 space-y-8 ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"}`}>
+ return (
+  <div className={`min-h-screen p-6 space-y-8 transition-colors duration-200 
+    ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"}`}>
       <h1 className="text-3xl font-bold">📊 Analytics Dashboard</h1>
 
       {/* SEARCH */}
       <input
         type="text"
         placeholder="Search plate number..."
-        className="w-full p-3 rounded-xl border shadow-sm focus:ring-2 focus:ring-blue-500"
+        className={`w-full p-3 rounded-xl border shadow-sm focus:ring-2 focus:ring-blue-500 transition-colors
+        ${darkMode 
+          ? "bg-gray-800 border-gray-700 text-white placeholder-gray-400" 
+          : "bg-white border-gray-300 text-gray-900"
+        }`}
         value={searchQuery}
         onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
       />
@@ -257,39 +284,112 @@ const driverChart = useMemo(() => {
           <div
             key={card.title}
             onClick={() => handleCardClick(card.title as FilterType)}
-            className={`cursor-pointer rounded-2xl p-6 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 ${
-              activeFilter === card.title ? "ring-2 ring-blue-500" : ""
-            }`}
+           className={`cursor-pointer rounded-2xl p-6 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1
+            ${darkMode ? "bg-gray-800 text-gray-100" : "bg-white text-gray-900"}
+            ${activeFilter === card.title ? "ring-2 ring-blue-500" : ""}`}
           >
             <h2 className="text-lg font-semibold">{card.title}</h2>
             <p className="text-3xl font-bold text-blue-600">{card.value}</p>
           </div>
         ))}
       </div>
-      {/* ✅ ADDED START - CHARTS SECTION */}
+      {/* CHARTS SECTION */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
   
   
-<div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow">
-  <h3 className="text-lg font-semibold mb-2">Driver Activity</h3>
-  <Bar data={driverChart} />
+{/* DRIVER ACTIVITY CARD */}
+<div className={`p-6 rounded-3xl shadow-lg transition-colors
+  ${darkMode ? "bg-gray-800 text-gray-100" : "bg-white text-gray-900"}`}>
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-lg font-semibold flex items-center gap-2">
+      👨‍🔧 Driver Activity
+      <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full">
+        Reports
+      </span>
+    </h3>
+  </div>
+  
+  {driverChart.labels && driverChart.labels.length > 0 ? (
+    <div style={{ height: "320px" }}>
+      <Bar 
+        data={driverChart} 
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: darkMode ? '#374151' : '#e5e7eb' },
+              ticks: { color: darkMode ? '#9ca3af' : '#6b7280' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { 
+                color: darkMode ? '#9ca3af' : '#6b7280',
+                maxRotation: 45
+              }
+            }
+          }
+        }}
+      />
+    </div>
+  ) : (
+    <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500">
+      No driver activity data yet
+    </div>
+  )}
 </div>
 
   {/* PIE CHART */}
-  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow">
+ <div className={`p-4 rounded-2xl shadow transition-colors
+  ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
     <h3 className="text-lg font-semibold mb-2">Vehicle Status</h3>
-    <Pie data={vehicleStatusChart} />
+    <Pie 
+  data={vehicleStatusChart}
+  options={{
+    plugins: {
+      legend: {
+        labels: {
+          color: darkMode ? "#fff" : "#000"
+        }
+      }
+    }
+  }}
+/>
   </div>
 
   {/* BAR CHART */}
-  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow">
+  <div className={`p-4 rounded-2xl shadow transition-colors
+  ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
     <h3 className="text-lg font-semibold mb-2">Vehicle Categories</h3>
-    <Bar data={vehicleCategoryChart} />
+   <Bar 
+  data={vehicleCategoryChart}
+  options={{
+    plugins: {
+      legend: {
+        labels: {
+          color: darkMode ? "#fff" : "#000"
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: darkMode ? "#fff" : "#000" }
+      },
+      y: {
+        ticks: { color: darkMode ? "#fff" : "#000" }
+      }
+    }
+  }}
+/>
   </div>
   
 
 </div>
-{/* ✅ ADDED END */}
+
             <MaintenanceModal
         darkMode={darkMode}
         activeFilter={activeFilter}

@@ -781,7 +781,8 @@ export default function RequestsTable({
                     <TripTicketModal
                         showTripTicket={showTripTicket}
                         setShowTripTicket={setShowTripTicket}
-                        requestId={editableRequest.id} // safe na dahil may check sa above line
+                        requestId={editableRequest.id} 
+                        darkMode={darkMode}
                     />
                     )}
                 </div>

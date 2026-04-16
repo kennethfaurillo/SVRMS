@@ -32,7 +32,7 @@ export function App() {
   const [darkMode, setDarkMode] = useTheme();
   const { addRequest } = useRequests(handleRequestsChange);
   const { trips } = useTrips(handleTripChange);
-  const { user, isAdmin, signOutUser } = useAuth();
+  const { user, userProfile, isAdmin, signOutUser } = useAuth();
 
   // Global Today Header
 const [currentDateTime, setCurrentDateTime] = useState(new Date());
@@ -89,15 +89,22 @@ const formatDateTime = (date: Date) => {
     setDarkMode(prevMode => !prevMode);
   };
   // Function to handle logout
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-      setMessage('Logged out successfully');
-    } catch (error) {
-      console.error('Logout error:', error);
-      setMessage('Error logging out');
-    }
-  };
+  // Function to handle logout
+const handleLogout = async () => {
+  try {
+    await signOutUser();
+    setMessage('Logged out successfully');
+    
+    // Force refresh ng UI
+    setTimeout(() => {
+      window.location.reload();   // ← Temporary fix para siguradong mag-update
+    }, 800);
+    
+  } catch (error) {
+    console.error('Logout error:', error);
+    setMessage('Error logging out');
+  }
+};
   // Function to add a new notification
   const addNotification = (type: Notification['type'], details: string, sound = 'request') => {
     const timestamp = new Date().toLocaleTimeString();
@@ -414,29 +421,38 @@ const formatDateTime = (date: Date) => {
             </div>
             <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               {/* Login/Logout Button */}
-              <button
-                onClick={!isAdmin ? () => setShowLoginModal(true) : handleLogout}
-                className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'} cursor-pointer`}
-                title={!isAdmin ? "Sign In" : "Sign Out"}
-              >
-                {!isAdmin ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                    </svg>
-                    <span className="hidden sm:inline">Sign In</span>
-                    <span className="sm:hidden">Login</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    <span className="hidden sm:inline">Sign Out</span>
-                    <span className="sm:hidden">Logout</span>
-                  </>
-                )}
-              </button>
+             {/* FIXED Login/Logout Button - Works for Admin, Mechanic, at Driver */}
+            <button
+              onClick={
+                isAdmin || 
+                userProfile?.role === "mechanic" || 
+                userProfile?.role === "driver" 
+                  ? handleLogout 
+                  : () => setShowLoginModal(true)
+              }
+              className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+              } text-white cursor-pointer`}
+              title={
+                isAdmin || userProfile?.role ? "Sign Out" : "Sign In"
+              }
+            >
+              {isAdmin || userProfile?.role ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="hidden sm:inline">Sign Out</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="hidden sm:inline">Sign In</span>
+                </>
+              )}
+            </button>
 
               {/* Dark Mode Toggle */}
               <button
@@ -543,22 +559,22 @@ const formatDateTime = (date: Date) => {
                 handleMarkTripAsFulfilled={handleMarkTripAsFulfilled}
               />
             </Route>
-            <Route path='/analytics'>
+           <Route path='/maintenance/automotive'>
+  <Maintenance category="Automotive" darkMode={darkMode} />
+</Route>
+<Route path="/analytics">
   <Analytics darkMode={darkMode} />
 </Route>
-            <Route path='/maintenance/automotive'>
-    <Maintenance category="Automotive" />
-  </Route>
-  <Route path='/maintenance/motorcycle'>
-    <Maintenance category="Motorcycle" />
-  </Route>
+<Route path='/maintenance/motorcycle'>
+  <Maintenance category="Motorcycle" darkMode={darkMode} />
+</Route>
   <Route path='/equipment-borrow'>
   <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
     <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
   </div>
 </Route>
             <Route path='/'>
-              <Home />
+              <Home darkMode={darkMode} />
             </Route>
             <Route>Not Found!</Route>
           </Switch>

@@ -12,8 +12,8 @@ interface ChecklistItem {
 
 // Vehicle lists
 const automotivePlates = [
-  "SKU 532", "SAB 6183", "SAA 7857", "SAB 6182",
-  "DOL 180", "131202", "SAA 6494", "SBA 1045", "SBA 1406"
+  "SKU 532", "SEH 336", "SBA 1406", "SAB 6183",
+  "SBA 1045", "131202","131206", "SAB 6182", "SAA 7857", "SAA 6494", "SEH 673"
 ];
 
 const motorcyclePlates = [
@@ -73,7 +73,13 @@ const motorcycleItems: ChecklistItem[] = [
   { id: 25, label: "Check basic tools" },
 ];
 
-export default function Maintenance({ category }: { category: "Automotive" | "Motorcycle" }) {
+export default function Maintenance({
+  category,
+  darkMode
+}: {
+  category: "Automotive" | "Motorcycle";
+  darkMode: boolean;
+}) {
   const [items, setItems] = useState<ChecklistItem[]>(
     category === "Automotive" ? [...automotiveItems] : [...motorcycleItems]
   );
@@ -101,7 +107,7 @@ export default function Maintenance({ category }: { category: "Automotive" | "Mo
 
   // ==================== DRIVER SECTION - UPDATED FIELDS ====================
   const [balanceTank, setBalanceTank] = useState("");
-  const [speedReading, setSpeedReading] = useState("");     // ← Changed to Speed Reading
+  const [speedReading, setSpeedReading] = useState("");     
   const [driverRemarks, setDriverRemarks] = useState("");
   // =====================================================================
 
@@ -144,14 +150,14 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
 
     const trackingId = await generateTrackingId();
 
-    // ✅ MANUAL SIGNATURE PROCESSING (bypasses broken trim-canvas)
+    
     const getSignatureDataUrl = (ref: any): string => {
       if (!ref?.current) return "";
 
       const canvas = ref.current.getCanvas();
       if (!canvas) return "";
 
-      // Create trimmed version manually
+     
       const tempCanvas = document.createElement("canvas");
       const ctx = tempCanvas.getContext("2d")!;
       tempCanvas.width = canvas.width;
@@ -164,7 +170,7 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
       let top = 0;
       outer: for (let y = 0; y < tempCanvas.height; y++) {
         for (let x = 0; x < tempCanvas.width; x++) {
-          if (data[(y * tempCanvas.width + x) * 4 + 3] > 0) { // alpha > 0
+          if (data[(y * tempCanvas.width + x) * 4 + 3] > 0) { 
             top = y;
             break outer;
           }
@@ -173,7 +179,7 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
 
       if (top === 0) return canvas.toDataURL("image/png");
 
-      // Crop from top (most signatures only need top trim)
+      
       const trimmedHeight = tempCanvas.height - top;
       const finalCanvas = document.createElement("canvas");
       finalCanvas.width = tempCanvas.width;
@@ -223,7 +229,8 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
   const plateNumbers = category === "Automotive" ? automotivePlates : motorcyclePlates;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className={`p-6 min-h-screen transition-colors duration-200
+  ${darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"}`}>
       {/* HEADER WITH LOGO AND TEXT */}
       <div className="flex items-center mb-6 border-b pb-2">
         <div className="flex-shrink-0">
@@ -234,11 +241,17 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
           />
         </div>
         <div className="ml-4">
-          <p className="text-sm font-semibold">Republic of the Philippines</p>
-          <p className="text-lg font-bold">PILI WATER DISTRICT</p>
-          <p className="text-sm">
-            Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418
-          </p>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        Republic of the Philippines
+      </p>
+
+      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        PILI WATER DISTRICT
+      </p>
+
+     <p className="text-sm text-gray-600 dark:text-gray-300">
+        Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418
+      </p>
         </div>
       </div>
 
@@ -261,7 +274,8 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
         <select
           value={selectedPlate}
           onChange={e => setSelectedPlate(e.currentTarget.value)}
-          className="w-full border p-2 rounded mt-1"
+          className={`w-full border p-2 rounded mt-1 transition-colors
+           ${darkMode ? "bg-gray-800 text-white border-gray-600" : "bg-white text-gray-900 border-gray-300"}`}
         >
           {plateNumbers.map(plate => (
             <option key={plate} value={plate}>
@@ -272,9 +286,10 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
       </div>
 
       {/* Checklist Table */}
-      <table className="w-full border border-gray-300 mb-6">
+      <table className={`w-full mb-6 border transition-colors
+       ${darkMode ? "border-gray-700 text-gray-100" : "border-gray-300 text-gray-900"}`}>
         <thead>
-          <tr className="bg-gray-100">
+          <tr className={`${darkMode ? "bg-gray-800" : "bg-gray-100"}`}>
             <th className="border px-2 py-1">#</th>
             <th className="border px-2 py-1 text-left">Item</th>
             <th className="border px-2 py-1">Good</th>
@@ -343,7 +358,7 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
         </div>
       </div>
 
-      {/* Driver Remarks - Kept as requested */}
+      {/* Driver Remarks */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Driver Remarks</label>
         <textarea

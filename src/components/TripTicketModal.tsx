@@ -2,18 +2,27 @@ import { h } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { firebaseFirestore } from "../firebase";
 import { collection, query, where, getDocs, limit, orderBy, Timestamp } from "firebase/firestore";
-import type { Request } from "../types";
+import type { DriverLog, Request } from "../types";
+
+interface DriverLogSectionProps {
+  driverLog?: DriverLog;
+  onChange?: (updates: Partial<DriverLog>) => void;
+  darkMode?: boolean;
+  isEditable?: boolean;
+}
 
 interface TripTicketModalProps {
   showTripTicket: boolean;
   setShowTripTicket: (value: boolean) => void;
   requestId: string | null;
+  darkMode?: boolean;
 }
 
 export default function TripTicketModal({
   showTripTicket,
   setShowTripTicket,
   requestId,
+  darkMode = false,
 }: TripTicketModalProps) {
 
   const [tripData, setTripData] = useState<any>(null);
@@ -21,7 +30,7 @@ export default function TripTicketModal({
   const [error, setError] = useState<string | null>(null);
   const [maintenanceData, setMaintenanceData] = useState<any>(null);
 
- const fetchMaintenanceData = async (plate?: string, requestDateInput?: string | Date) => {
+const fetchMaintenanceData = async (plate?: string, requestDateInput?: string | Date) => {
   const vehiclePlate = plate;
 
   if (!vehiclePlate) return;
@@ -35,6 +44,9 @@ export default function TripTicketModal({
         ? new Date(requestDateInput) 
         : requestDateInput;
     }
+
+    
+    targetDate.setHours(23, 59, 59, 999);
 
     if (isNaN(targetDate.getTime())) targetDate = new Date();
 
@@ -58,29 +70,14 @@ export default function TripTicketModal({
       setMaintenanceData(maintenance);
       console.log(`✅ CORRECT Maintenance for ${vehiclePlate} as of ${targetDate.toLocaleDateString("en-PH")}`, maintenance);
     } else {
-      console.log(`⚠️ No maintenance before ${targetDate.toLocaleDateString("en-PH")} for ${vehiclePlate}`);
+      console.log(`⚠️ No maintenance before or on ${targetDate.toLocaleDateString("en-PH")} for ${vehiclePlate}`);
       setMaintenanceData(null);
     }
   } catch (err) {
     console.error("Error fetching maintenance:", err);
-    
-    // Fallback sa dati mong code
-    console.log("Falling back to old logic...");
-    const fallbackQ = query(
-      collection(firebaseFirestore, "maintenanceReports"),
-      where("plateNumber", "==", vehiclePlate)
-    );
-    const fallbackSnap = await getDocs(fallbackQ);
-    
-    if (!fallbackSnap.empty) {
-      const sorted = fallbackSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a: any, b: any) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-      setMaintenanceData(sorted[0]);
-    }
+    setMaintenanceData(null);   
   }
 };
-
 const formatETA = (isoString?: string): string => {
     if (!isoString) return "";
 
@@ -99,12 +96,12 @@ const formatETA = (isoString?: string): string => {
   };
 
   const getSpeedometerReading = (): string => {
-  // Priority 1: Value saved directly in Trip document
+ 
   if (tripData?.speedometerReading) {
     return tripData.speedometerReading.toString();
   }
 
-  // Priority 2: Latest value from Maintenance Checklist (this is what you want)
+  
   if (maintenanceData?.driverSection?.speedReading !== undefined && 
       maintenanceData.driverSection.speedReading !== null) {
     return maintenanceData.driverSection.speedReading.toString();
@@ -164,39 +161,49 @@ const formatETA = (isoString?: string): string => {
           
           console.log("✅ Fetched Trip Data:", data);
 
-          const trip = { 
+                   const trip = { 
             id: doc.id, 
             ...data 
           };
 
           setTripData(trip);
 
-          // ====================== ULTRA SAFE EXTRACTION (walang TypeScript error) ======================
+          const tripAny = data as any;
+
           const plate = 
-            (data as any).requestedVehicle || 
-            (data as any).vehicleAssigned || 
+            tripAny.requestedVehicle || 
+            tripAny.vehicleAssigned || 
             (trip as any).requestedVehicle || 
             (trip as any).vehicleAssigned || 
             "";
 
-          // Safe date extraction - sinusuri lahat ng posibleng field names
-          let requestDateInput: string | Date = new Date();
+          let requestDateForMaintenance: string | Date = new Date();
 
-          if ((data as any).requestedDateTime) {
-            requestDateInput = (data as any).requestedDateTime;
-          } else if ((data as any).dateTime) {
-            requestDateInput = (data as any).dateTime;
+          if (tripAny.requestedDateTime) {
+            requestDateForMaintenance = tripAny.requestedDateTime;
+          } else if (tripAny.dateTime) {
+            requestDateForMaintenance = tripAny.dateTime;
           } else if ((trip as any).requestedDateTime) {
-            requestDateInput = (trip as any).requestedDateTime;
+            requestDateForMaintenance = (trip as any).requestedDateTime;
           } else if ((trip as any).dateTime) {
-            requestDateInput = (trip as any).dateTime;
+            requestDateForMaintenance = (trip as any).dateTime;
+          }
+
+          
+          if (typeof requestDateForMaintenance === "string") {
+            requestDateForMaintenance = new Date(requestDateForMaintenance);
+          }
+
+          
+          if (isNaN((requestDateForMaintenance as Date).getTime())) {
+            requestDateForMaintenance = new Date();
           }
 
           if (plate) {
-            console.log(`🔍 Fetching maintenance for plate: "${plate}" | Date used:`, requestDateInput);
-            await fetchMaintenanceData(plate, requestDateInput);   // Pass plate + date
+            console.log(`🔍 Fetching maintenance for ${plate} using date:`, requestDateForMaintenance);
+            await fetchMaintenanceData(plate, requestDateForMaintenance);
           } else {
-            console.log("⚠️ No plate number found in this trip record.");
+            console.warn("⚠️ No plate number found in this trip record.");
           }
         } else {
           setError("Trip record not found for this request.");
@@ -223,258 +230,240 @@ const formatETA = (isoString?: string): string => {
     const threshold = fullTank * 0.20;   // 20% threshold
 
     if (balance <= threshold) {
-      return Math.ceil(fullTank - balance);   // Kung magkano ang kailangan irefuel
+      return Math.ceil(fullTank - balance);   
     }
     return 0;
   })();
 
   const showRefuelRow = refuelAmount > 0;
 
+  const handleDriverLogChange = (updates: Partial<DriverLog>) => {
+    if (!tripData) return;
+    setTripData({
+      ...tripData,
+      driverLog: { ...(tripData.driverLog || {}), ...updates }
+    });
+  };
+
   // ==================== PRINT FUNCTION (2 copies on 1 A4) ====================
  
-const getPrintHtml = () => {
-  if (!tripData) return "<h2>No Data Available</h2>";
+  // ==================== FINAL PRINT - 2 SHEETS (Ticket + 2 Compact Letter B) ====================
+  const getPrintHtml = () => {
+    if (!tripData) return "<h2>No Data Available</h2>";
 
-  const dateStr = tripData.requestedDateTime || tripData.dateTime
-    ? new Date(tripData.requestedDateTime || tripData.dateTime).toLocaleDateString("en-PH")
-    : "—";
+    const dateStr = tripData.requestedDateTime || tripData.dateTime
+      ? new Date(tripData.requestedDateTime || tripData.dateTime).toLocaleDateString("en-PH")
+      : "—";
 
-  const driver = tripData.delegatedDriverName || tripData.driverName || "—";
-  const plate = tripData.requestedVehicle || tripData.vehicleAssigned || "—";
-  const purposeText = Array.isArray(tripData.purpose) 
-    ? tripData.purpose.join(", ") 
-    : (tripData.purpose || "—");
+    const driver = tripData.delegatedDriverName || tripData.driverName || "—";
+    const plate = tripData.requestedVehicle || tripData.vehicleAssigned || "—";
+    const purposeText = Array.isArray(tripData.purpose) 
+      ? tripData.purpose.join(", ") 
+      : (tripData.purpose || "—");
 
-  const passengersText = tripData.passengers 
-    ? (Array.isArray(tripData.passengers) ? tripData.passengers.join(", ") : tripData.passengers)
-    : "—";
+    const passengersText = tripData.passengers 
+      ? (Array.isArray(tripData.passengers) ? tripData.passengers.join(", ") : tripData.passengers)
+      : "—";
 
-  const eta = formatETA(tripData.estimatedArrival) || "—";
-  const speedoReading = getSpeedometerReading();   
+    const eta = formatETA(tripData.estimatedArrival) || "—";
+    const speedoReading = getSpeedometerReading();
 
-  
-  let fuelInTankDisplay = "— L";
-  if (maintenanceData?.driverSection?.balanceInTank !== undefined) {
-    fuelInTankDisplay = `${maintenanceData.driverSection.balanceInTank} L`;
-  } else if (tripData.fuelInTank !== undefined && tripData.fuelInTank !== null) {
-    fuelInTankDisplay = `${tripData.fuelInTank} L`;
-  }
-
-  
-  let refuelDisplay = "NO NEED";
-  if (maintenanceData?.driverSection?.balanceInTank !== undefined) {
-    const balance = Number(maintenanceData.driverSection.balanceInTank);
-    const plateUpper = (plate || "").toUpperCase();
-    const isMotorcycle = plateUpper.includes("TRYC") || plateUpper.includes("MC") || plateUpper.includes("MOTOR");
-    const fullTank = isMotorcycle ? 10 : 20;
-    const threshold = fullTank * 0.20;
-
-    if (balance <= threshold) {
-      refuelDisplay = "⚠️ NEED REFUEL";
+    let fuelInTankDisplay = "— L";
+    if (maintenanceData?.driverSection?.balanceInTank !== undefined) {
+      fuelInTankDisplay = `${maintenanceData.driverSection.balanceInTank} L`;
+    } else if (tripData.fuelInTank !== undefined && tripData.fuelInTank !== null) {
+      fuelInTankDisplay = `${tripData.fuelInTank} L`;
     }
-  }
 
- const tripTicketNo = tripData.tripCode || "N/A";
+    const tripTicketNo = tripData.tripCode || "N/A";
 
-  // Signature values
-  const mechanicName = tripData.mechanicName || "";
-  const recommendedBy = tripData.recommendedBy || "";
-  const approvedBy = tripData.approvedBy || "";
+    const log = tripData.driverLog || {};
 
-  return `
-    <html>
-      <head>
-        <title>DRIVER'S TRIP TICKET</title>
-        <style>
-         @page { 
-            size: A4 portrait; 
-            margin: 5mm; 
-          }
-          body { 
-            font-family: Arial, sans-serif; 
-            color: #000; 
-            margin: 0; 
-            padding: 0;
-          }
-          .ticket {
-            width: 100%;
-            border: 3px solid #000;
-            padding: 12px 15px;
-            box-sizing: border-box;
-            margin-bottom: 10px;
-            page-break-inside: avoid;
-            height: 48.5%;
-            display: flex;
-            flex-direction: column;
-          }
-          .header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 10px; 
-            border-bottom: 3px solid #000; 
-            padding-bottom: 6px; 
-          }
-          .logo { height: 45px; }
-          h2 { 
-            text-align: center; 
-            margin: 8px 0 12px; 
-            font-size: 19px; 
-            font-weight: bold; 
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 12px; 
-            font-size: 13.5px;
-          }
-          th, td { 
-            border: 2px solid #000; 
-            padding: 6px 8px; 
-            vertical-align: middle; 
-          }
-          th { 
-            background-color: #f0f0f0; 
-            text-align: left; 
-            width: 32%; 
-            font-weight: bold;
-          }
-          .note {
-            font-size: 12px;
-            text-align: center;
-            margin: 10px 0 14px;
-            font-style: italic;
-          }
-          .signatures {
-            display: flex;
-            justify-content: space-around;
-            margin-top: auto;
-            font-size: 12.5px;
-          }
-          .signature-box {
-            text-align: center;
-            width: 30%;
-          }
-          .signature-name {
-            font-weight: bold;
-            min-height: 20px;
-            margin-bottom: 4px;
-          }
-          .signature-line {
-            border-top: 2px solid #000;
-            width: 85%;
-            margin: 0 auto 4px auto;
-          }
-          .small-text {
-            font-size: 10px;
-            text-align: right;
-            margin-top: 10px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="ticket">
-          <div class="header">
-            <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
-            <div style="text-align:center; flex:1;">
-              <p style="margin:0; font-size:12px;">Republic of the Philippines</p>
-              <p style="margin:4px 0; font-size:17px; font-weight:bold;">PILI WATER DISTRICT</p>
-              <p style="margin:0; font-size:11px;">Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418</p>
+    return `
+      <html>
+        <head>
+          <title>DRIVER'S TRIP TICKET</title>
+          <style>
+            @page { size: A4 portrait; margin: 5mm; }
+            body { font-family: Arial, sans-serif; color: #000; margin:0; padding:0; }
+            .ticket {
+              width: 100%;
+              border: 3px solid #000;
+              padding: 12px 15px;
+              box-sizing: border-box;
+              margin-bottom: 15px;
+              height: 48%;
+              display: flex;
+              flex-direction: column;
+              page-break-inside: avoid;
+            }
+            .header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: center; 
+              margin-bottom: 10px; 
+              border-bottom: 3px solid #000; 
+              padding-bottom: 6px; 
+            }
+            .logo { height: 45px; }
+            h2 { 
+              text-align: center; 
+              margin: 8px 0 12px; 
+              font-size: 19px; 
+              font-weight: bold; 
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 12px; 
+              font-size: 13.5px;
+            }
+            th, td { 
+              border: 2px solid #000; 
+              padding: 6px 8px; 
+            }
+            th { 
+              background-color: #f0f0f0; 
+              text-align: left; 
+              width: 32%; 
+              font-weight: bold;
+            }
+            .note {
+              font-size: 12px;
+              text-align: center;
+              margin: 10px 0 14px;
+              font-style: italic;
+            }
+            .log-section {
+              margin-top: 12px;
+              line-height: 2.05;
+              font-size: 13.8px;
+            }
+            .remarks-box {
+              border: 2px solid #000;
+              min-height: 65px;
+              padding: 8px;
+              margin-top: 8px;
+              font-size: 13.5px;
+            }
+          </style>
+        </head>
+        <body>
+
+          <!-- PAGE 1: DALAWANG DRIVER'S TRIP TICKET (HINDI BINAGO) -->
+          <div class="ticket">
+            <div class="header">
+              <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
+              <div style="text-align:center; flex:1;">
+                <p style="margin:0; font-size:12px;">Republic of the Philippines</p>
+                <p style="margin:4px 0; font-size:17px; font-weight:bold;">PILI WATER DISTRICT</p>
+                <p style="margin:0; font-size:11px;">Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418</p>
+              </div>
+              <img src="${window.location.origin}/images/logo-TUV.jpg" class="logo" alt="TUV">
             </div>
-            <img src="${window.location.origin}/images/logo-TUV.jpg" class="logo" alt="TUV">
-          </div>
-
-          <h2>DRIVER'S TRIP TICKET</h2>
-
+            <h2>DRIVER'S TRIP TICKET</h2>
             <table>
-            <tr><th>Date</th><td>${dateStr}</td><th>Trip Ticket No.</th><td style="text-align:center; font-weight:bold;">${tripTicketNo}</td></tr>
-            <tr><th>Driver</th><td colspan="3">${driver}</td></tr>
-            <tr><th>Plate Number</th><td colspan="3">${plate}</td></tr>
-            <tr><th>Purpose</th><td colspan="3">${purposeText}</td></tr>
-            <tr><th>Passengers</th><td colspan="3">${passengersText}</td></tr>
-            <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
-            <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
-            <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
-           ${showRefuelRow ? `<tr><th>Refuel</th><td colspan="3">${refuelAmount} L</td></tr>` : ''}
-          </table>
-
-          <div class="note">
-            <strong>Return this trip ticket to GS after vehicle use.</strong>
-          </div>
-
-          <div class="signatures">
-            <div class="signature-box">
-              <div class="signature-name">${mechanicName}</div>
-              <div class="signature-line"></div>
-              Mechanic
-            </div>
-            <div class="signature-box">
-              <div class="signature-name">${recommendedBy}</div>
-              <div class="signature-line"></div>
-              Division Mgr.
-            </div>
-            <div class="signature-box">
-              <div class="signature-name">${approvedBy}</div>
-              <div class="signature-line"></div>
-              Asst. Chief
-            </div>
-          </div>
-        </div>
-
-        <!-- Second Copy -->
-        <div class="ticket">
-          <div class="header">
-            <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
-            <div style="text-align:center; flex:1;">
-              <p style="margin:0; font-size:12px;">Republic of the Philippines</p>
-              <p style="margin:4px 0; font-size:17px; font-weight:bold;">PILI WATER DISTRICT</p>
-              <p style="margin:0; font-size:11px;">Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418</p>
-            </div>
-            <img src="${window.location.origin}/images/logo-TUV.jpg" class="logo" alt="TUV">
-          </div>
-
-          <h2>DRIVER'S TRIP TICKET</h2>
-
-                   <table>
-            <tr><th>Date</th><td>${dateStr}</td><th>Trip Ticket No.</th><td style="text-align:center; font-weight:bold;">${tripTicketNo}</td></tr>
-            <tr><th>Driver</th><td colspan="3">${driver}</td></tr>
-            <tr><th>Plate Number</th><td colspan="3">${plate}</td></tr>
-            <tr><th>Purpose</th><td colspan="3">${purposeText}</td></tr>
-            <tr><th>Passengers</th><td colspan="3">${passengersText}</td></tr>
-            <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
-            <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
-            <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
-           ${showRefuelRow ? `<tr><th>Refuel</th><td colspan="3">${refuelAmount} L</td></tr>` : ''}
-          </table>
-
-          <div class="note">
-            <strong>Return this trip ticket to GS after vehicle use.</strong>
-          </div>
-
-          <div class="signatures">
-            <div class="signature-box">
-              <div class="signature-name">${mechanicName}</div>
-              <div class="signature-line"></div>
-              Mechanic
-            </div>
-            <div class="signature-box">
-              <div class="signature-name">${recommendedBy}</div>
-              <div class="signature-line"></div>
-              Division Mgr.
-            </div>
-            <div class="signature-box">
-              <div class="signature-name">${approvedBy}</div>
-              <div class="signature-line"></div>
-              Asst. Chief
+              <tr><th>Date</th><td>${dateStr}</td><th>Trip Ticket No.</th><td style="text-align:center; font-weight:bold;">${tripTicketNo}</td></tr>
+              <tr><th>Driver</th><td colspan="3">${driver}</td></tr>
+              <tr><th>Plate Number</th><td colspan="3">${plate}</td></tr>
+              <tr><th>Purpose</th><td colspan="3">${purposeText}</td></tr>
+              <tr><th>Passengers</th><td colspan="3">${passengersText}</td></tr>
+              <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
+              <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
+              <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
+            </table>
+            <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
+            <div class="signatures" style="margin-top:auto;">
+              <div class="signature-box"><div class="signature-line"></div>Mechanic</div>
+              <div class="signature-box"><div class="signature-line"></div>Division Mgr.</div>
+              <div class="signature-box"><div class="signature-line"></div>Asst. Chief</div>
             </div>
           </div>
 
-         
-        </div>
-      </body>
-    </html>
-  `;
-};
+          <div class="ticket">
+            <div class="header">
+              <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
+              <div style="text-align:center; flex:1;">
+                <p style="margin:0; font-size:12px;">Republic of the Philippines</p>
+                <p style="margin:4px 0; font-size:17px; font-weight:bold;">PILI WATER DISTRICT</p>
+                <p style="margin:0; font-size:11px;">Sta. Rita Agro-Industrial Park, San Jose, Pili, Camarines Sur 4418</p>
+              </div>
+              <img src="${window.location.origin}/images/logo-TUV.jpg" class="logo" alt="TUV">
+            </div>
+            <h2>DRIVER'S TRIP TICKET</h2>
+            <table>
+              <tr><th>Date</th><td>${dateStr}</td><th>Trip Ticket No.</th><td style="text-align:center; font-weight:bold;">${tripTicketNo}</td></tr>
+              <tr><th>Driver</th><td colspan="3">${driver}</td></tr>
+              <tr><th>Plate Number</th><td colspan="3">${plate}</td></tr>
+              <tr><th>Purpose</th><td colspan="3">${purposeText}</td></tr>
+              <tr><th>Passengers</th><td colspan="3">${passengersText}</td></tr>
+              <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
+              <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
+              <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
+            </table>
+            <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
+            <div class="signatures" style="margin-top:auto;">
+              <div class="signature-box"><div class="signature-line"></div>Mechanic</div>
+              <div class="signature-box"><div class="signature-line"></div>Division Mgr.</div>
+              <div class="signature-box"><div class="signature-line"></div>Asst. Chief</div>
+            </div>
+          </div>
+
+          <!-- PAGE 2: DALAWANG LETTER B SA ISANG PAPER (Mas maluwag ang Remarks) -->
+          <div class="ticket" style="page-break-before: always; height: 48%;">
+            <h2 style="margin:5px 0 10px; font-size:17.5px;">B. TO BE FILLED BY THE DRIVER</h2>
+            <div class="log-section">
+              1. Time of Departure from Office/Garage ___________________________ ${log.timeDepartureOffice || ""}<br/>
+              2. Time of Arrival back to Office/Garage ___________________________ ${log.timeArrivalBackOffice || ""}<br/><br/>
+
+              3. Gasoline Issued purchased and consumed _______________________ Liters<br/>
+                a. Balance In tank _______________________ Liters ${log.balanceInTankStart || ""}<br/>
+                b. Add purchased during trip _______________________ Liters ${log.purchasedDuringTrip || ""}<br/>
+                <strong>TOTAL:</strong> _______________________ Liters ${log.totalFuel || ""}<br/>
+                c. Deduct Used During the Trip (To and From) _______________________ Liters ${log.usedDuringTrip || ""}<br/>
+                d. Balance In Tank at the end of trip _______________________ Liters ${log.balanceInTankEnd || ""}<br/><br/>
+
+              4. Speedometer readings if any:<br/>
+                At beginning of trip ________________________ kms. ${log.speedometerBegin || ""}<br/>
+                At end of trip ________________________ kms. ${log.speedometerEnd || ""}<br/>
+                Distance Travelled/DIVISOR _____ km/liters ________________________ kms. ${log.distanceTravelled || ""}<br/><br/>
+
+              5. REMARKS:
+            </div>
+            <div class="remarks-box">
+              ${log.remarks || ""}
+            </div>
+          </div>
+
+          <div class="ticket">
+            <h2 style="margin:5px 0 10px; font-size:17.5px;">B. TO BE FILLED BY THE DRIVER</h2>
+            <div class="log-section">
+              1. Time of Departure from Office/Garage ___________________________ ${log.timeDepartureOffice || ""}<br/>
+              2. Time of Arrival back to Office/Garage ___________________________ ${log.timeArrivalBackOffice || ""}<br/><br/>
+
+              3. Gasoline Issued purchased and consumed _______________________ Liters<br/>
+                a. Balance In tank _______________________ Liters ${log.balanceInTankStart || ""}<br/>
+                b. Add purchased during trip _______________________ Liters ${log.purchasedDuringTrip || ""}<br/>
+                <strong>TOTAL:</strong> _______________________ Liters ${log.totalFuel || ""}<br/>
+                c. Deduct Used During the Trip (To and From) _______________________ Liters ${log.usedDuringTrip || ""}<br/>
+                d. Balance In Tank at the end of trip _______________________ Liters ${log.balanceInTankEnd || ""}<br/><br/>
+
+              4. Speedometer readings if any:<br/>
+                At beginning of trip ________________________ kms. ${log.speedometerBegin || ""}<br/>
+                At end of trip ________________________ kms. ${log.speedometerEnd || ""}<br/>
+                Distance Travelled/DIVISOR _____ km/liters ________________________ kms. ${log.distanceTravelled || ""}<br/><br/>
+
+              5. REMARKS:
+            </div>
+            <div class="remarks-box">
+              ${log.remarks || ""}
+            </div>
+          </div>
+
+        </body>
+      </html>
+    `;
+  };
 
   const handlePrint = () => {
     const win = window.open("", "_blank", "width=1200,height=900");
@@ -509,12 +498,22 @@ const getPrintHtml = () => {
       </div>
     );
   }
-  const tripTicketNo = tripData.tripCode || tripData.tripTicketNumber || "N/A";
+ 
     const speedoDisplay = getSpeedometerReading();
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={() => setShowTripTicket(false)}>
-      <div style={{ background: "#fff", width: "95%", maxWidth: "920px", maxHeight: "95vh", overflowY: "auto", padding: "25px", borderRadius: "8px" }} onClick={(e) => e.stopPropagation()}>
+      <div
+  style={{
+    background: darkMode ? "#1f2937" : "#fff",
+    color: darkMode ? "#f9fafb" : "#000",
+    width: "95%",
+    maxWidth: "920px",
+    maxHeight: "95vh",
+    overflowY: "auto",
+    padding: "25px",
+    borderRadius: "8px"
+  }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <img src={`${window.location.origin}/images/PIWAD-LOGO.png`} style={{ height: 80 }} alt="PIWAD" />
@@ -534,11 +533,18 @@ const getPrintHtml = () => {
         </p>
 
         {/* Editable Form Table */}
-       {/* Information Table - with better fallbacks */}
-<table style={{ width: "100%", borderCollapse: "collapse", border: "2.5px solid #000", marginBottom: 30 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", border: "2.5px solid #000", marginBottom: 30 }}>
           <tbody>
             <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0", width: "30%" }}>Date</th>
+              <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>Date</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 {tripData.requestedDateTime 
                   ? new Date(tripData.requestedDateTime).toLocaleDateString("en-PH")
@@ -548,19 +554,43 @@ const getPrintHtml = () => {
               </td>
             </tr>
             <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Driver</th>
+              <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>Driver</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 {tripData.delegatedDriverName || tripData.driverName || "—"}
               </td>
             </tr>
             <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Plate Number</th>
+              <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>Plate Number</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 {tripData.requestedVehicle || tripData.vehicleAssigned || "—"}
               </td>
             </tr>
             <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Purpose</th>
+              <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>Purpose</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 {tripData.purpose 
                   ? (Array.isArray(tripData.purpose) ? tripData.purpose.join(", ") : tripData.purpose)
@@ -568,7 +598,15 @@ const getPrintHtml = () => {
               </td>
             </tr>
             <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Passengers</th>
+             <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>Passengers</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 {tripData.passengers 
                   ? (Array.isArray(tripData.passengers) 
@@ -580,9 +618,16 @@ const getPrintHtml = () => {
               </td>
             </tr>
 
-            {/* Bagong Fields mula sa handwritten form */}
                       <tr>
-                  <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>
+                  <th
+  style={{
+    border: "1px solid #000",
+    padding: 12,
+    background: darkMode ? "#374151" : "#f0f0f0",
+    color: darkMode ? "#fff" : "#000",
+    width: "30%"
+  }}
+>
                     Estimated Time of Arrival
                   </th>
                   <td style={{ border: "1px solid #000", padding: 12 }}>
@@ -593,7 +638,13 @@ const getPrintHtml = () => {
                         ...tripData, 
                         estimatedArrival: e.currentTarget.value 
                       })}
-                      style={{ width: "100%", border: "none", borderBottom: "2px solid #000" }}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        borderBottom: "2px solid #000",
+                        background: darkMode ? "#111827" : "#fff",
+                        color: darkMode ? "#fff" : "#000"
+                      }}
                       placeholder="e.g. 10:00 AM"
                     />
                     {!tripData.estimatedArrival && (
@@ -604,7 +655,15 @@ const getPrintHtml = () => {
                   </td>
                 </tr>
                         <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Speedometer Reading</th>
+                   <th
+              style={{
+                border: "1px solid #000",
+                padding: 12,
+                background: darkMode ? "#374151" : "#f0f0f0",
+                color: darkMode ? "#fff" : "#000",
+                width: "30%"
+              }}
+            >Speedometer Reading</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 <strong style={{ fontSize: "16px" }}>
                   {speedoDisplay} km
@@ -617,33 +676,198 @@ const getPrintHtml = () => {
               </td>
             </tr>
                                    <tr>
-              <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Fuel in Tank</th>
+              <th
+              style={{
+                border: "1px solid #000",
+                padding: 12,
+                background: darkMode ? "#374151" : "#f0f0f0",
+                color: darkMode ? "#fff" : "#000",
+                width: "30%"
+              }}
+            >Fuel in Tank</th>
               <td style={{ border: "1px solid #000", padding: 12 }}>
                 <input
                   type="text"
                   value={tripData.fuelInTank || getBalanceInTank()}
                   onChange={(e) => setTripData({ ...tripData, fuelInTank: e.currentTarget.value })}
-                  style={{ width: "100%", border: "none", borderBottom: "2px solid #000" }}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "2px solid #000",
+                    background: darkMode ? "#111827" : "#fff",
+                    color: darkMode ? "#fff" : "#000"
+                  }}
                   placeholder="e.g. 25 L"
                 />
               </td>
             </tr>
             {showRefuelRow && (
-  <tr>
-    <th style={{ border: "1px solid #000", padding: 12, background: "#f0f0f0" }}>Refuel</th>
-    <td style={{ 
-      border: "1px solid #000", 
-      padding: 12, 
-      color: "#ef4444", 
-      fontWeight: "bold",
-      fontSize: "16px"
-    }}>
-      {refuelAmount} L
-    </td>
-  </tr>
-)}
+              <tr>
+                <th
+              style={{
+                border: "1px solid #000",
+                padding: 12,
+                background: darkMode ? "#374151" : "#f0f0f0",
+                color: darkMode ? "#fff" : "#000",
+                width: "30%"
+              }}
+            >Refuel</th>
+                <td style={{ 
+                  border: "1px solid #000", 
+                  padding: 12, 
+                  color: "#ef4444", 
+                  fontWeight: "bold",
+                  fontSize: "16px"
+                }}>
+                  {refuelAmount} L
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+
+                {/* ==================== B. TO BE FILLED BY THE DRIVER ==================== */}
+        <div style={{
+          marginTop: "35px",
+          padding: "25px",
+          border: "2.5px solid #000",
+          borderRadius: "6px",
+          background: darkMode ? "#1f2937" : "#ffffff"
+        }}>
+          <h3 style={{ 
+            fontSize: "18px", 
+            fontWeight: "bold", 
+            marginBottom: "20px",
+            color: darkMode ? "#60a5fa" : "#1e3a8a" 
+          }}>
+            B. To Be Filled by the Driver
+          </h3>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px", fontSize: "15px" }}>
+
+            {/* 1 & 2 */}
+            <div style={{ display: "flex", gap: "25px" }}>
+              <div style={{ flex: 1 }}>
+                1. Time of Departure from Office/Garage
+                <input
+                  type="text"
+                  value={tripData.driverLog?.timeDepartureOffice || ""}
+                  onChange={(e) => handleDriverLogChange({ timeDepartureOffice: e.currentTarget.value })}
+                  style={{ display: "block", width: "100%", marginTop: "5px", border: "none", borderBottom: "2px solid #000", background: "transparent", color: darkMode ? "#fff" : "#000" }}
+                  placeholder="___________________________"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                2. Time of Arrival back to Office/Garage
+                <input
+                  type="text"
+                  value={tripData.driverLog?.timeArrivalBackOffice || ""}
+                  onChange={(e) => handleDriverLogChange({ timeArrivalBackOffice: e.currentTarget.value })}
+                  style={{ display: "block", width: "100%", marginTop: "5px", border: "none", borderBottom: "2px solid #000", background: "transparent", color: darkMode ? "#fff" : "#000" }}
+                  placeholder="___________________________"
+                />
+              </div>
+            </div>
+
+            {/* 3 - Gasoline */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                3. Gasoline Issued purchased and consumed
+                <input
+                  type="text"
+                  value={tripData.driverLog?.gasolineIssuedConsumed || ""}
+                  onChange={(e) => handleDriverLogChange({ gasolineIssuedConsumed: e.currentTarget.value })}
+                  style={{ width: "90px", border: "none", borderBottom: "2px solid #000", background: "transparent", color: darkMode ? "#fff" : "#000", textAlign: "center" }}
+                  placeholder="_______"
+                />
+                Liters
+              </div>
+
+              <div style={{ marginLeft: "30px", marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>a. Balance In tank 
+                  <input type="text" value={tripData.driverLog?.balanceInTankStart || ""} 
+                         onChange={(e) => handleDriverLogChange({ balanceInTankStart: e.currentTarget.value })}
+                         style={{ width: "110px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} /> Liters
+                </div>
+                <div>b. Add purchased during trip 
+                  <input type="text" value={tripData.driverLog?.purchasedDuringTrip || ""} 
+                         onChange={(e) => handleDriverLogChange({ purchasedDuringTrip: e.currentTarget.value })}
+                         style={{ width: "110px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} /> Liters
+                </div>
+                <div style={{ fontWeight: "bold" }}>
+                  TOTAL: 
+                  <input type="text" value={tripData.driverLog?.totalFuel || ""} 
+                         onChange={(e) => handleDriverLogChange({ totalFuel: e.currentTarget.value })}
+                         style={{ width: "110px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent", fontWeight: "bold" }} /> Liters
+                </div>
+                <div>c. Deduct Used During the Trip (To and From) 
+                  <input type="text" value={tripData.driverLog?.usedDuringTrip || ""} 
+                         onChange={(e) => handleDriverLogChange({ usedDuringTrip: e.currentTarget.value })}
+                         style={{ width: "110px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} /> Liters
+                </div>
+                <div>d. Balance In Tank at the end of trip 
+                  <input type="text" value={tripData.driverLog?.balanceInTankEnd || ""} 
+                         onChange={(e) => handleDriverLogChange({ balanceInTankEnd: e.currentTarget.value })}
+                         style={{ width: "110px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} /> Liters
+                </div>
+              </div>
+            </div>
+
+            {/* 4 - Speedometer (Fully Editable) */}
+            <div>
+              <div>4. Speedometer readings if any:</div>
+              <div style={{ marginLeft: "30px", marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>
+                  At beginning of trip 
+                  <input type="text" value={tripData.driverLog?.speedometerBegin || ""} 
+                         onChange={(e) => handleDriverLogChange({ speedometerBegin: e.currentTarget.value })}
+                         style={{ width: "130px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} />
+                  kms.
+                </div>
+                <div>
+                  At end of trip 
+                  <input type="text" value={tripData.driverLog?.speedometerEnd || ""} 
+                         onChange={(e) => handleDriverLogChange({ speedometerEnd: e.currentTarget.value })}
+                         style={{ width: "130px", marginLeft: "12px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} />
+                  kms.
+                </div>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  Distance Travelled/DIVISOR 
+                  <input type="text" value={tripData.driverLog?.distanceTravelled || ""} 
+                         onChange={(e) => handleDriverLogChange({ distanceTravelled: e.currentTarget.value })}
+                         style={{ width: "90px", marginLeft: "8px", marginRight: "8px", border: "none", borderBottom: "2px solid #000", background: "transparent", textAlign: "center" }} />
+                  km/liters 
+                  <input type="text" value={tripData.driverLog?.distanceTravelled || ""} 
+                         onChange={(e) => handleDriverLogChange({ distanceTravelled: e.currentTarget.value })}
+                         style={{ width: "130px", marginLeft: "8px", border: "none", borderBottom: "2px solid #000", background: "transparent" }} />
+                  kms.
+                </div>
+              </div>
+            </div>
+
+            {/* 5 - Remarks */}
+            <div>
+              <div>5. REMARKS:</div>
+              <textarea
+                value={tripData.driverLog?.remarks || ""}
+                onChange={(e) => handleDriverLogChange({ remarks: e.currentTarget.value })}
+                rows={3}
+                style={{
+                  width: "100%",
+                  marginTop: "8px",
+                  border: "2px solid #000",
+                  padding: "10px",
+                  fontSize: "15px",
+                  resize: "vertical",
+                  background: darkMode ? "#374151" : "#fff",
+                  color: darkMode ? "#fff" : "#000"
+                }}
+                placeholder="Write your remarks here..."
+              />
+            </div>
+
+          </div>
+        </div>
 
 {/* Editable Signatures */}
         <div style={{ marginTop: 40 }}>
@@ -655,7 +879,15 @@ const getPrintHtml = () => {
                 type="text"
                 value={tripData.mechanicName || ""}
                 onChange={(e) => setTripData({ ...tripData, mechanicName: e.currentTarget.value })}
-                style={{ width: "85%", marginTop: 35, border: "none", borderBottom: "2px solid #000", textAlign: "center" }}
+                style={{
+                width: "85%",
+                marginTop: 35,
+                border: "none",
+                borderBottom: "2px solid #000",
+                textAlign: "center",
+                background: darkMode ? "#111827" : "#fff",
+                color: darkMode ? "#fff" : "#000"
+              }}
               />
             </div>
             <div style={{ width: "32%", textAlign: "center" }}>
@@ -664,7 +896,15 @@ const getPrintHtml = () => {
                 type="text"
                 value={tripData.recommendedBy || ""}
                 onChange={(e) => setTripData({ ...tripData, recommendedBy: e.currentTarget.value })}
-                style={{ width: "85%", marginTop: 35, border: "none", borderBottom: "2px solid #000", textAlign: "center" }}
+                style={{
+                  width: "85%",
+                  marginTop: 35,
+                  border: "none",
+                  borderBottom: "2px solid #000",
+                  textAlign: "center",
+                  background: darkMode ? "#111827" : "#fff",
+                  color: darkMode ? "#fff" : "#000"
+                }}
               />
               <div style={{ marginTop: 8 }}>Division Manager / Supervisor</div>
             </div>
@@ -674,7 +914,15 @@ const getPrintHtml = () => {
                 type="text"
                 value={tripData.approvedBy || ""}
                 onChange={(e) => setTripData({ ...tripData, approvedBy: e.currentTarget.value })}
-                style={{ width: "85%", marginTop: 35, border: "none", borderBottom: "2px solid #000", textAlign: "center" }}
+                style={{
+                  width: "85%",
+                  marginTop: 35,
+                  border: "none",
+                  borderBottom: "2px solid #000",
+                  textAlign: "center",
+                  background: darkMode ? "#111827" : "#fff",
+                  color: darkMode ? "#fff" : "#000"
+                }}
               />
               <div style={{ marginTop: 8 }}>Asst. Chief</div>
             </div>

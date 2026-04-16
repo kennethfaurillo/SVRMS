@@ -48,13 +48,13 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const defectiveSet = new Set<string>();
 
-            snapshot.docs.forEach((doc) => {   // ← note: (doc) with parentheses
+            snapshot.docs.forEach((doc) => {   
                 const data = doc.data();
                 const plateNumber = data.plateNumber as string;
 
                 if (!plateNumber) return;
 
-                // Check top-level status (kung may)
+                
                 if (data.status === "Defective") {
                     defectiveSet.add(plateNumber);
                     return;
@@ -108,13 +108,12 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                 timestamp: Timestamp.fromDate(new Date()),
                 remarks,
                 status: 'Pending' as const,
-                // ** ADDED START: include passengers **
+                // ** include passengers **
                 passengers: passengers.filter(p => p.trim() !== ''),
-                // ** ADDED END **
             }
             console.log(requestData)
 
-            await onSubmit(requestData); // Call the onSubmit prop with the request data
+            await onSubmit(requestData); 
 
             // Clear form after successful submission
             setRequesterName('');
@@ -134,9 +133,11 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
         }
     }
 
-    return (
-        <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-4 rounded-lg shadow-inner`}>
-            <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>Record New Request</h2>
+      return (
+        <div className={`p-6 rounded-xl shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-6 ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>
+                Record New Request
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* First row - Personnel, Department, Service Vehicle */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -187,51 +188,64 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
 
                     {/* Service Vehicle */}
                    <div className="flex flex-col space-y-2 relative" ref={dropdownRef}>
-                        <label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                            Service Vehicle *
-                        </label>
-                        <div
-                            className={`px-3 py-2 text-sm border rounded cursor-pointer ${darkMode ? "bg-gray-600 text-white border-gray-500" : "bg-white border-gray-300"} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            onClick={() => !isLoading && setIsVehicleOpen(!isVehicleOpen)}
-                        >
-                            {requestedVehicle?.name || "Select Service Vehicle"}
-                        </div>
+    <label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+        Service Vehicle *
+    </label>
+    
+    <div
+        className={`px-3 py-2 text-sm border rounded-md cursor-pointer transition-colors
+            ${darkMode 
+                ? "bg-gray-700 text-white border-gray-600 hover:border-gray-500" 
+                : "bg-white border-gray-300 hover:border-gray-400"
+            } 
+            ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={() => !isLoading && setIsVehicleOpen(!isVehicleOpen)}
+    >
+        {requestedVehicle?.name || "Select Service Vehicle"}
+    </div>
 
-                        {/* Dropdown list */}
-                        {isVehicleOpen && (
-                            <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto bg-white border rounded shadow-lg dark:bg-gray-800 dark:border-gray-600">
-                                {serviceVehicles.map(vehicle => {
-                                    const isUnavailable = unavailableVehicles.some(uv => uv[0] === vehicle.name);
-                                    const isDefective = defectiveVehicles.has(vehicle.name);
-                                    const isBlocked = isUnavailable || isDefective;
+    {/* Dropdown list */}
+    {isVehicleOpen && (
+        <div className={`absolute z-50 mt-1 w-full max-h-60 overflow-auto border rounded-md shadow-lg
+            ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-300"}`}>
+            {serviceVehicles.map(vehicle => {
+                const isUnavailable = unavailableVehicles.some(uv => uv[0] === vehicle.name);
+                const isDefective = defectiveVehicles.has(vehicle.name);
+                const isBlocked = isUnavailable || isDefective;
 
-                                    return (
-                                        <div
-                                            key={vehicle.name}
-                                            onClick={() => {
-                                                if (isBlocked || isLoading) return;
-                                                setRequestedVehicle(vehicle);
-                                                setIsVehicleOpen(false);
-                                            }}
-                                            onMouseEnter={() => setHoveredVehicle(vehicle)}
-                                            onMouseLeave={() => setHoveredVehicle(null)}
-                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-700
-                                                ${isBlocked ? "text-red-500 font-semibold cursor-not-allowed opacity-75" : "hover:text-blue-600"}`}
-                                        >
-                                            {vehicle.name}
-                                            {isUnavailable && ` (Until ${new Date(unavailableVehicles.find(uv => uv[0] === vehicle.name)?.[1] as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
-                                            {isDefective && " — DEFECTIVE"}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                return (
+                    <div
+                        key={vehicle.name}
+                        onClick={() => {
+                            if (isBlocked || isLoading) return;
+                            setRequestedVehicle(vehicle);
+                            setIsVehicleOpen(false);
+                        }}
+                        onMouseEnter={() => setHoveredVehicle(vehicle)}
+                        onMouseLeave={() => setHoveredVehicle(null)}
+                        className={`px-3 py-2.5 text-sm cursor-pointer transition-colors
+                            ${isBlocked 
+                                ? "text-red-500 cursor-not-allowed opacity-75" 
+                                : darkMode 
+                                    ? "hover:bg-gray-700 text-gray-200" 
+                                    : "hover:bg-blue-50 hover:text-blue-700"
+                            }`}
+                    >
+                        {vehicle.name}
+                        {isUnavailable && ` (Until ${new Date(unavailableVehicles.find(uv => uv[0] === vehicle.name)?.[1] as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+                        {isDefective && " — DEFECTIVE"}
+                    </div>
+                );
+            })}
+        </div>
+    )}
 
-            {/* Hover image preview */}
-            {hoveredVehicle?.image && isVehicleOpen && (
-              <div className="absolute left-full top-0 ml-2 w-56 bg-white border rounded shadow-lg p-2 z-50">
-                <img src={hoveredVehicle.image} alt={hoveredVehicle.name} className="w-full rounded" />
-              </div>
+    {/* Hover image preview */}
+    {hoveredVehicle?.image && isVehicleOpen && (
+        <div className={`absolute left-full top-0 ml-2 w-56 border rounded-md shadow-lg p-2 z-50
+            ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-300"}`}>
+            <img src={hoveredVehicle.image} alt={hoveredVehicle.name} className="w-full rounded" />
+        </div>
             )}
           </div>
         </div>
@@ -402,14 +416,14 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
       )}
     </div>
   ))}
-  <button
-    type="button"
-    className="text-blue-600 text-sm mt-1"
-    onClick={() => setPassengers([...passengers, ''])}
-  >
-    + Add Passenger
-  </button>
-</div>
+        <button
+        type="button"
+        className="text-blue-600 text-sm mt-1 cursor-pointer hover:underline"
+        onClick={() => setPassengers([...passengers, ''])}
+        >
+        + Add Passenger
+        </button>
+        </div>
                 {/* Fourth row - Remarks and Submit */}
                 <div className="flex flex-col space-y-4">
                     {/* Remarks */}

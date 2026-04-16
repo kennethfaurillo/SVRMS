@@ -15,6 +15,7 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   isAdmin: boolean;
+  role: "admin" | "mechanic" | "driver" | "user";
   signInUser: (username?: string, password?: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   isLoading: boolean;
@@ -52,21 +53,35 @@ export const AuthProvider: React.FC = ({ children }) => {
   };
 
   // Function to sign out user (reset to anon user)
-  const signOutUser = async () => {
-    try {
-      await signIn(import.meta.env.VITE_FB_ANON_EMAIL, import.meta.env.VITE_FB_ANON_PASSWORD);
-      const signedInUser = await signIn(import.meta.env.VITE_FB_ANON_EMAIL, import.meta.env.VITE_FB_ANON_PASSWORD);
-    } catch (error) {
-      console.error("Error signing out:", error);
-      throw error;
-    }
-  };
+const signOutUser = async () => {
+  try {
+    setIsLoading(true);
+    
+    // Sign in as anonymous user
+    await signIn(
+      import.meta.env.VITE_FB_ANON_EMAIL,
+      import.meta.env.VITE_FB_ANON_PASSWORD
+    );
+
+    
+    setUser(null);
+    setUserProfile(null);
+    setIsAdmin(false);
+
+    console.log("✅ Successfully signed out and switched to anonymous user");
+  } catch (error) {
+    console.error("Error signing out:", error);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
    // Function to fetch user profile from Firestore
-  const fetchUserProfile = async (uid: string) => {
+const fetchUserProfile = async (uid: string) => {
     try {
       console.log("🔍 Fetching profile for UID:", uid);
       
-      const userDoc = await getDoc(doc(db, "users", uid));
+      const userDoc = await getDoc(doc(db, "user", uid));
       
       if (userDoc.exists()) {
         const profileData = userDoc.data();
@@ -81,6 +96,14 @@ export const AuthProvider: React.FC = ({ children }) => {
       setUserProfile(null);
     }
   };
+   const getUserRole = (): "admin" | "mechanic" | "driver" | "user" => {
+  if (isAdmin) return "admin";
+  const profileRole = (userProfile?.role || "").toLowerCase().trim();
+  if (["admin", "mechanic", "driver"].includes(profileRole)) {
+    return profileRole as "admin" | "mechanic" | "driver";
+  }
+  return "user";
+};
 
   // Check the authentication state and user role
   useEffect(() => {
@@ -107,12 +130,14 @@ export const AuthProvider: React.FC = ({ children }) => {
     return () => unsubscribe(); 
   }, []);
 
+     
    return (
     <AuthContext.Provider 
       value={{ 
         user, 
         userProfile,           
         isAdmin, 
+        role: getUserRole(),
         signInUser, 
         signOutUser, 
         isLoading 

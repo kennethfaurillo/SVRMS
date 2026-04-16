@@ -37,9 +37,13 @@ interface MaintenanceReport {
   checklist: { id: number; label: string; status: string }[];
 }
 
-export default function Home() {
+interface HomeProps {
+    darkMode: boolean;
+}
+
+export default function Home({ darkMode }: HomeProps) {
   
-    const { isAdmin } = useAuth();
+    const { isAdmin, role } = useAuth();
     const [showMaintenance, setShowMaintenance] = useState(false);
     const [bulletinsData, setBulletinsData] = useState<any[]>([]);
     const [newTitle, setNewTitle] = useState("");
@@ -159,26 +163,38 @@ export default function Home() {
   {/* Latest Updates List */}
   
       {isAdmin && (
-  <div className="mb-4 bg-white p-4 rounded shadow">
-    <h3 className="text-sm font-semibold mb-2">Add Bulletin</h3>
+  <div className={`mb-6 p-5 rounded-xl shadow-sm border 
+    ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+    
+    <h3 className={`text-sm font-semibold mb-3 
+      ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+      Add Bulletin
+    </h3>
 
-    {/* Title Input */}
+    {/* Title Input - Consistent Styling */}
     <input
-      className="border p-2 w-full mb-2 text-sm"
-      placeholder="Title"
+      className={`w-full px-4 py-2.5 text-sm border rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all
+        ${darkMode 
+          ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
+          : 'bg-white border-gray-300 placeholder-gray-500'
+        }`}
+      placeholder="Bulletin Title"
       value={newTitle}
       onInput={(e: any) => setNewTitle(e.target.value)}
     />
 
-    {/* Description Input */}
+    {/* Description Input - Consistent Styling */}
     <textarea
-      className="border p-2 w-full mb-2 text-sm"
-      placeholder="Description"
+      className={`w-full px-4 py-2.5 text-sm border rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-y min-h-[80px]
+        ${darkMode 
+          ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
+          : 'bg-white border-gray-300 placeholder-gray-500'
+        }`}
+      placeholder="Bulletin Description"
       value={newDesc}
       onInput={(e: any) => setNewDesc(e.target.value)}
     />
 
-    
     <button
       type="button"
       onClick={async () => {
@@ -209,14 +225,13 @@ export default function Home() {
           alert("Failed to post bulletin. Check console for details.");
         }
       }}
-      className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
+      className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
     >
-      Post
+      Post Bulletin
     </button>
   </div>
 )}
-
-      {/* 🔥 BULLETIN LIST */}
+      {/* BULLETIN LIST */}
       <ul className="space-y-4">
           {bulletinsData.map(b => (
           <li key={b.id} className="flex flex-col text-slate-800">
@@ -269,7 +284,7 @@ export default function Home() {
         </div>
 
         {/* ICON CARDS */}
-        {/* ===================== ICON CARDS SPLIT START ===================== */}
+       
 <div className="bg-slate-100 min-h-screen w-full flex gap-4 p-4">
 
   {/* LEFT CARDS */}
@@ -347,7 +362,7 @@ export default function Home() {
         r.checklist?.some(item => item.status === "Defective")
     );
 
-    // Determine final status
+    
     let finalStatus = v.status; 
     let statusColor = "text-green-600";
 
@@ -374,14 +389,14 @@ export default function Home() {
 </div>
     )}
     <Link href={anyAvailable ? "/request-form" : "#"} className="w-full mt-4">
-      <button
-        className={`w-full py-3 rounded text-white font-semibold ${
-          anyAvailable ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400 cursor-not-allowed"
-        }`}
-        disabled={!anyAvailable}
-      >
-        Proceed to Request Form
-      </button>
+          <button
+      className={`w-full py-3 rounded text-white font-semibold cursor-pointer ${
+        anyAvailable ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400 cursor-not-allowed"
+      }`}
+      disabled={!anyAvailable}
+    >
+      Proceed to Request Form
+    </button>
     </Link>
   </div>
 </div>
@@ -390,42 +405,61 @@ export default function Home() {
   <div className="w-[20%] flex flex-col gap-4">
 
     {/* Maintenance */}
-    <div className="relative">
-      <div 
-        onClick={() => setShowMaintenance(!showMaintenance)}
-        className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-teal-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
-      >
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200 transition-colors">
-            <ClipboardIcon className="w-8 h-8 text-teal-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700">
-            Maintenance Checklist
-          </h2>
-          <p className="text-slate-600 group-hover:text-slate-700">
-            Track and Manage Vehicle Maintenance Tasks
-          </p>
+   {["admin", "mechanic", "driver"].includes(role) ? (
+  <div className="relative">
+    <div 
+      onClick={() => setShowMaintenance(!showMaintenance)}
+      className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-teal-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
+    >
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200 transition-colors">
+          <ClipboardIcon className="w-8 h-8 text-teal-600" />
         </div>
+        <h2 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700">
+          Maintenance Checklist
+        </h2>
+        <p className="text-slate-600 group-hover:text-slate-700">
+          Track and Manage Vehicle Maintenance Tasks
+        </p>
       </div>
-
-      {/* Maintenance Dropdown */}
-      {showMaintenance && (
-        <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg p-4 flex flex-col space-y-2 z-50">
-          <Link href="/maintenance/automotive">
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
-              <CarIcon className="w-6 h-6 text-teal-600"/>
-              <span className="text-teal-700 font-medium">Automotive</span>
-            </div>
-          </Link>
-          <Link href="/maintenance/motorcycle">
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
-              <BikeIcon className="w-6 h-6 text-teal-600"/>
-              <span className="text-teal-700 font-medium">Motorcycle/Trimobile</span>
-            </div>
-          </Link>
-        </div>
-      )}
     </div>
+
+    {/* Dropdown */}
+    {showMaintenance && (
+      <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg p-4 flex flex-col space-y-2 z-50">
+        <Link href="/maintenance/automotive">
+          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
+            <CarIcon className="w-6 h-6 text-teal-600"/>
+            <span className="text-teal-700 font-medium">Automotive</span>
+          </div>
+        </Link>
+        <Link href="/maintenance/motorcycle">
+          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
+            <BikeIcon className="w-6 h-6 text-teal-600"/>
+            <span className="text-teal-700 font-medium">Motorcycle/Trimobile</span>
+          </div>
+        </Link>
+      </div>
+    )}
+  </div>
+) : (
+  /* Disabled version for other users */
+  <div className="group cursor-not-allowed opacity-60">
+    <div className="bg-white border border-slate-200 p-8 rounded-xl shadow-sm">
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
+          <ClipboardIcon className="w-8 h-8 text-teal-400" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-800">
+          Maintenance Checklist
+        </h2>
+        <p className="text-slate-500">
+          Only for Admin, Mechanic & Driver
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
     {/* Analytics */}
     <HomeCard href="/analytics">
@@ -480,7 +514,6 @@ export default function Home() {
 
   </div>
 </div>
-{/* ===================== ICON CARDS SPLIT END ===================== */}
             </div>
         </div>
     )

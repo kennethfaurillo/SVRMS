@@ -42,6 +42,22 @@ export type Request = {
   tripTicketNumber?: string; 
   maintenanceReportId?: string;
 }
+
+export interface DriverLog {
+  timeDepartureOffice?: string;
+  timeArrivalBackOffice?: string;
+  gasolineIssuedConsumed?: string;
+  balanceInTankStart?: string;
+  purchasedDuringTrip?: string;
+  totalFuel?: string;
+  usedDuringTrip?: string;
+  balanceInTankEnd?: string;
+  speedometerBegin?: string;
+  speedometerEnd?: string;
+  distanceTravelled?: string;
+  remarks?: string;
+}
+
 export type RequestKey = keyof Request;
 export type Trip = {
   id: string; // Firebase auto-generated ID
@@ -57,16 +73,17 @@ export type Trip = {
   requestIds: string[];
   status: TripStatus;
   maintenanceChecked?: boolean;
-  fuelPercentageAtStart?: number;     // 0-100
-  fuelInTank?: number;                // Liters
+  fuelPercentageAtStart?: number;     
+  fuelInTank?: number;                
   needsRefuel?: boolean;
-  refuelAmount?: number;              // Liters (0 if not needed)
+  refuelAmount?: number;              
   refuelRemarks?: string;
 
   mechanicName?: string;
   recommendedBy?: string;
   approvedBy?: string;
   speedometerReading?: string;
+  driverLog?: DriverLog;
 }
 export type Department = {
   name: string,
@@ -132,3 +149,4 @@ export type FilterType =
    driverSignature?: string;
     mechanicSignature?: string;
 }
+

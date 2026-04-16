@@ -1,17 +1,5 @@
 import { useState } from "react";
-import {
-  ChartColumnIcon,
-  ClipboardClockIcon,
-  FileTextIcon,
-  HomeIcon,
-  MapPinCheckIcon,
-  UserIcon,
-  MenuIcon,
-  XIcon,
-  UsersIcon,
-  CarIcon,
-  BikeIcon
-} from "lucide-react";
+import {ChartColumnIcon, ClipboardClockIcon, FileTextIcon, HomeIcon, MapPinCheckIcon, UserIcon, MenuIcon, XIcon, UsersIcon, CarIcon, BikeIcon } from "lucide-react";
 import { Link, useRoute } from "wouter-preact";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -26,6 +14,7 @@ interface SidebarItem {
   path: string;
   icon: preact.JSX.Element;
   subItems?: SidebarSubItem[];
+  allowedRoles?: string[]; 
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -40,6 +29,7 @@ const sidebarItems: SidebarItem[] = [
       { label: "Automotive", path: "/maintenance/automotive", icon: <CarIcon stroke="white" size={16} /> },
       { label: "Motorcycle/Trimobile", path: "/maintenance/motorcycle", icon: <BikeIcon stroke="white" size={16} /> },
     ],
+    allowedRoles: ["admin", "mechanic", "driver"]
   },
   { label: "Equipment Borrow", path: "/equipment-borrow", icon: <FileTextIcon stroke="white" size={20} /> },
   { label: "Analytics", path: "/analytics", icon: <ChartColumnIcon stroke="white" size={20} /> },
@@ -78,7 +68,21 @@ export default function Sidebar() {
           {item.icon}
           <span className="text-sm sm:text-base">{item.label}</span>
         </Link>
+        
       );
+    }
+    const currentRole = (userProfile?.role || "").toLowerCase();
+    const isAdminUser = isAdmin || currentRole === "admin";
+
+    if (item.allowedRoles) {
+      const hasAccess = item.allowedRoles.some(role => {
+        if (role === "admin") return isAdminUser;
+        return role === currentRole;
+      });
+
+      if (!hasAccess) {
+        return null; // Huwag ipakita ang item
+      }
     }
 
     // For items with subItems (dropdown)

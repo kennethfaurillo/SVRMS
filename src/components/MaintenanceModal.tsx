@@ -15,9 +15,6 @@ interface Props {
   getVehicleStatus: (report: MaintenanceReport) => string;
 }
 
-/* =========================
-   COMPONENT - Updated UI (similar to TripTicketModal)
-========================= */
 export default function MaintenanceModal({
   darkMode,
   activeFilter,
@@ -66,7 +63,7 @@ export default function MaintenanceModal({
         }} 
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER - Same style as TripTicketModal */}
+        {/* HEADER */}
         <div style={{ 
           display: "flex", 
           alignItems: "center", 
@@ -291,7 +288,7 @@ export default function MaintenanceModal({
 
       <hr style={{ margin: "16px 0" }} />
 
-      {/* SIGNATURES (IMPORTANT RESTORED) */}
+      {/* SIGNATURES */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
 
         <div>
