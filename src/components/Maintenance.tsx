@@ -295,7 +295,7 @@ export default function Maintenance({
                 onClick={selectAllGood}
                 className="text-[10px] mt-1 px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded"
               >
-                All Good
+                Select all
               </button>
             </th>
             <th className="border px-2 py-1 text-center">
@@ -305,7 +305,7 @@ export default function Maintenance({
                 onClick={selectAllDefective}
                 className="text-[10px] mt-1 px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded"
               >
-                All Defective
+                Select all
               </button>
             </th>
           </tr>
