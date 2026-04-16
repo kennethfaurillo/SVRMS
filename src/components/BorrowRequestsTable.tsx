@@ -7,6 +7,7 @@ import useBorrowRequests from "../hooks/useBorrowRequest";
 import type { BorrowRequest, Item } from "../types";
 import { exportBorrowRequestsToCsv } from "../utils";
 import PrintBorrowersForm from "./PrintBorrowersForm";
+import GatePass from "./GatePass";   // ← Siguraduhing may file ito
 
 interface BorrowRequestsTableProps {
     darkMode: boolean;
@@ -22,6 +23,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
     const [requestEditData, setRequestEditData] = useState<BorrowRequest | null>(null);
     const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
     const [printId, setPrintId] = useState<string | null>(null);
+    const [selectedGatePass, setSelectedGatePass] = useState<BorrowRequest | null>(null);
 
     // Filter & Pagination
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
@@ -88,7 +90,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
         return sortedRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [sortedRequests, currentPage]);
 
-    // ==================== HELPER FUNCTIONS ====================
+    // ==================== HELPER FUNCTIONS (Hindi ko ginagalaw) ====================
     const formatShortDate = (dateStr?: string): string => {
         if (!dateStr) return "—";
         const date = new Date(dateStr);
@@ -102,35 +104,19 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
         if (request.startDate && request.returnDate) {
             const start = new Date(request.startDate);
             const end = new Date(request.returnDate);
-
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                const startFormatted = start.toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
-                const endFormatted = end.toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
+                const startFormatted = start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+                const endFormatted = end.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
                 return `${startFormatted} - ${endFormatted}`;
             }
         }
-
-        if (request.period?.toString().trim()) {
-            return request.period.toString().trim();
-        }
-
+        if (request.period?.toString().trim()) return request.period.toString().trim();
         return "—";
     };
 
-    const combineItems = (items: Item[] = []) =>
-        items.map(item => item.particulars || "—").join("\n") || "—";
-
-    const combineQuantities = (items: Item[] = []) =>
-        items.map(item => item.quantity || "—").join("\n") || "—";
-
-    const combineRemarks = (items: Item[] = []) =>
-        items.map(item => item.remarks?.trim() || "—").join("\n") || "—";
+    const combineItems = (items: Item[] = []) => items.map(item => item.particulars || "—").join("\n") || "—";
+    const combineQuantities = (items: Item[] = []) => items.map(item => item.quantity || "—").join("\n") || "—";
+    const combineRemarks = (items: Item[] = []) => items.map(item => item.remarks?.trim() || "—").join("\n") || "—";
 
     // ==================== ACTION HANDLERS ====================
     const updateRequestStatus = async (requestId: string, newStatus: 'Approved' | 'Returned') => {
@@ -139,13 +125,10 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
 
         try {
             const updateData: Record<string, any> = { status: newStatus };
-
             if (newStatus === 'Returned') {
                 updateData.returnedAt = Timestamp.now();
             }
-
             await updateDoc(doc(db, 'borrowRequests', requestId), updateData);
-            console.log(`✅ Request ${requestId} marked as ${newStatus}`);
         } catch (error) {
             console.error("Error updating status:", error);
             alert(`Failed to update status to ${newStatus}. Please try again.`);
@@ -166,44 +149,8 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
         updateRequestStatus(request.id, 'Returned');
     };
 
-    const handlePrint = (id: string) => {
-        setPrintId(id);
-    };
-
-    const handleEditClick = (request: BorrowRequest) => {
-        setRequestEditData({ ...request });
-        setEditingRequestId(request.id || null);
-    };
-
-    const cancelEditing = () => {
-        setEditingRequestId(null);
-        setRequestEditData(null);
-    };
-
-    const saveEditedRequest = async (requestId: string) => {
-        if (!requestEditData) return;
-        setUpdatingRequestId(requestId);
-
-        try {
-            await updateDoc(doc(db, 'borrowRequests', requestId), {
-                requestNo: requestEditData.requestNo,
-                date: requestEditData.date,
-                requestor: requestEditData.requestor,
-                purpose: requestEditData.purpose,
-                startDate: requestEditData.startDate,
-                returnDate: requestEditData.returnDate,
-                period: requestEditData.period,
-                items: requestEditData.items,
-                status: requestEditData.status || 'Pending',
-            });
-            cancelEditing();
-        } catch (error) {
-            console.error("Error updating borrow request:", error);
-            alert("Failed to save changes.");
-        } finally {
-            setUpdatingRequestId(null);
-        }
-    };
+    const handlePrintForm = (id: string) => setPrintId(id);
+    const handlePrintGatePass = (request: BorrowRequest) => setSelectedGatePass(request);
 
     const handleDeleteClick = async (request: BorrowRequest) => {
         if (!request.id || !confirm("Delete this borrow request?")) return;
@@ -220,7 +167,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
 
     return (
         <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 sm:p-6 rounded-lg shadow-inner mt-8`}>
-            {/* Header */}
+            {/* Header - Hindi ko ginagalaw */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>
@@ -283,26 +230,21 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                     <th className="px-4 py-3 text-left border">Qty</th>
                                     <th className="px-4 py-3 text-left border">Remarks</th>
                                     <th className="px-4 py-3 text-left border">Status</th>
-                                    {isAdmin && <th className="px-4 py-3 text-left border w-72">Actions</th>}
+                                    {isAdmin && <th className="px-4 py-3 text-left border w-80">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className={darkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
                                 {paginatedRequests.map((request: BorrowRequest) => (
-                                    <tr
-                                        key={request.id}
-                                        className={`border-b transition-colors ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-50'}`}
-                                    >
+                                    <tr key={request.id} className={`border-b transition-colors ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-50'}`}>
                                         <td className="px-4 py-4 border">
                                             <div className="font-medium">{request.requestNo || '—'}</div>
                                             <div className="text-xs text-gray-500 mt-1">{formatShortDate(request.date)}</div>
                                         </td>
                                         <td className="px-4 py-4 border font-medium">{request.requestor || '—'}</td>
                                         <td className="px-4 py-4 border">{request.purpose || '—'}</td>
-
                                         <td className="px-4 py-4 border text-sm font-medium">
                                             {getIntendedPeriod(request)}
                                         </td>
-
                                         <td className="px-4 py-4 border whitespace-pre-line">{combineItems(request.items)}</td>
                                         <td className="px-4 py-4 border whitespace-pre-line font-medium">{combineQuantities(request.items)}</td>
                                         <td className="px-4 py-4 border whitespace-pre-line text-xs text-blue-600 dark:text-blue-400">
@@ -333,6 +275,16 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         </button>
                                                     )}
 
+                                                    {/* GATE PASS - Katabi ng Approve/Return */}
+                                                    {request.status === 'Approved' && (
+                                                        <button
+                                                            onClick={() => handlePrintGatePass(request)}
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                        >
+                                                            Gate Pass
+                                                        </button>
+                                                    )}
+
                                                     {/* RETURN / UNDO SECTION */}
                                                     {(request.status === 'Approved' || request.status === 'Returned') && (
                                                         <div className="flex gap-2">
@@ -358,28 +310,23 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         </div>
                                                     )}
 
-                                                    {/* Other Action Buttons */}
-                                                    <button
-                                                        onClick={() => handlePrint(request.id!)}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
-                                                    >
-                                                        Print Form
-                                                    </button>
+                                                    {/* Print Form + Delete - Sa ibaba */}
+                                                    <div className="flex gap-2 mt-2">
+                                                        <button
+                                                            onClick={() => handlePrintForm(request.id!)}
+                                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                        >
+                                                            Print Form
+                                                        </button>
 
-                                                    <button
-                                                        onClick={() => handleEditClick(request)}
-                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium"
-                                                    >
-                                                        Edit
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => handleDeleteClick(request)}
-                                                        disabled={updatingRequestId === request.id}
-                                                        className="bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white px-3 py-1 rounded text-xs font-medium"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(request)}
+                                                            disabled={updatingRequestId === request.id}
+                                                            className="bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white px-3 py-1 rounded text-xs font-medium"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </td>
                                         )}
@@ -389,7 +336,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                         </table>
                     </div>
 
-                    {/* Pagination */}
+                    {/* Pagination - Hindi ko ginagalaw */}
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-6 px-2">
                             <button
@@ -424,23 +371,17 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                 </>
             )}
 
-            {/* PRINT MODAL */}
+            {/* PRINT FORM MODAL */}
             {printId && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
                     <div className="bg-white w-full max-w-4xl max-h-[95vh] overflow-auto rounded-xl shadow-2xl">
                         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
                             <h3 className="font-semibold text-lg">Borrower's Form Preview</h3>
                             <div className="flex gap-3">
-                                <button
-                                    onClick={() => window.print()}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium"
-                                >
+                                <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
                                     🖨 Print
                                 </button>
-                                <button
-                                    onClick={() => setPrintId(null)}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm font-medium"
-                                >
+                                <button onClick={() => setPrintId(null)} className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
                                     Close
                                 </button>
                             </div>
@@ -448,6 +389,14 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                         <PrintBorrowersForm id={printId} />
                     </div>
                 </div>
+            )}
+
+            {/* GATE PASS MODAL */}
+            {selectedGatePass && (
+                <GatePass 
+                    request={selectedGatePass} 
+                    onClose={() => setSelectedGatePass(null)} 
+                />
             )}
         </div>
     );
