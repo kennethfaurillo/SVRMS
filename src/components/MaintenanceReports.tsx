@@ -31,6 +31,66 @@ interface MaintenanceReport {
   driverSection?: DriverSection;
 }
 
+// ================= MAJOR & MINOR ITEMS DEFINITION =================
+
+// AUTOMOTIVE
+const automotiveMajorItems = [
+  "Check brake fluid level",
+  "Check engine oil condition & level",
+  "Check radiator water level & coolant",
+  "Check tire condition include spare tire",
+  "Check seatbelt condition",
+  "Check battery & battery cable clamp",
+];
+
+const automotiveMinorItems = [
+  "Check horn portion",
+  "Check wiper operation",
+  "Check windshield washer operation",
+  "Check headlight",
+  "Check signal light",
+  "Check hazard/emergency light",
+  "Check back-up light",
+  "Check stop light",
+  "Check power steering fluid level",
+  "Check ATF",
+  "Check instrument panel gauges",
+  "Check side/back mirror",
+  "Check plate light",
+  "Check handtools and jack condition",
+];
+
+// MOTORCYCLE / TRIMOBILE
+const motorcycleMajorItems = [
+  "Check brake/clutch lever",
+  "Check cables clutch/accelerator/brake",
+  "Check front wheel rim",
+  "Check front wheel hub",
+  "Check front & rear wheel spokes",
+  "Check sprockets/chain",
+  "Check rear shock absorber",
+  "Check ignition switch",
+  "Check fuel tank",
+];
+
+const motorcycleMinorItems = [
+  "Check front finder",
+  "Check rear fender",
+  "Check speedometer",
+  "Check signal light",
+  "Check headlight assy",
+  "Check rubber grip",
+  "Check left handle switch",
+  "Check right handle switch",
+  "Check side mirror",
+  "Check kick starter",
+  "Check footrest bar",
+  "Check gear shifting lever",
+  "Check horn",
+  "Check tail light",
+  "Check basic tools",
+];
+
 export default function MaintenanceReports() {
   const [reports, setReports] = useState<MaintenanceReport[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -95,27 +155,61 @@ export default function MaintenanceReports() {
   const automotiveVehicles = filteredVehicles.filter((v) => v.category === "Automotive");
   const motorcycleVehicles = filteredVehicles.filter((v) => v.category === "Motorcycle");
 
-  // ✅ FIXED & CONSISTENT getVehicleStatus (same as Analytics)
+  // ================= NEW getVehicleStatus WITH MAJOR/MINOR LOGIC =================
   const getVehicleStatus = (report?: MaintenanceReport): "Good" | "Defective" => {
     if (!report?.checklist || report.checklist.length === 0) {
       return "Good";
     }
 
-    // Kahit isa lang na "Defective" sa checklist → Defective na
-    const hasDefective = report.checklist.some(
-      (item) => item.status.toLowerCase() === "defective"
-    );
+    const plate = report.plateNumber || "";
+    const isMotorcycle = 
+      plate.toLowerCase().includes("mc") || 
+      plate.toLowerCase().startsWith("m") || 
+      plate.toLowerCase().includes("tri") ||
+      plate.toLowerCase().includes("motor");
 
-    return hasDefective ? "Defective" : "Good";
+    const majorItems = isMotorcycle ? motorcycleMajorItems : automotiveMajorItems;
+    const minorItems = isMotorcycle ? motorcycleMinorItems : automotiveMinorItems;
+
+    let majorDefectiveCount = 0;
+    let minorDefectiveCount = 0;
+
+    report.checklist.forEach((item) => {
+      if (item.status.toLowerCase() !== "defective") return;
+
+      const label = item.label.toLowerCase().trim();
+
+      // Check Major Items (any 1 = Defective)
+      if (majorItems.some((major) => label.includes(major.toLowerCase()))) {
+        majorDefectiveCount++;
+        return;
+      }
+
+      // Check Minor Items
+      if (minorItems.some((minor) => label.includes(minor.toLowerCase()))) {
+        minorDefectiveCount++;
+      } else {
+        // Unknown item → treat as minor (safer)
+        minorDefectiveCount++;
+      }
+    });
+
+    // Decision Logic
+    if (majorDefectiveCount >= 1) {
+      return "Defective";                    // 1 major defective = Defective
+    }
+
+    if (minorDefectiveCount >= 3) {
+      return "Defective";                    // 3 or more minor defective = Defective
+    }
+
+    return "Good";                           // 0-2 minor defective = still Good
   };
 
   const getFuelStatus = (report?: MaintenanceReport) => {
     if (!report) return "No Data";
 
-    const balanceTank =
-      report.driverSection?.balanceTank ??
-      0;
-
+    const balanceTank = report.driverSection?.balanceTank ?? 0;
     const plate = report.plateNumber ?? "";
     const vehicleInfo = vehicleTypes[plate] || { tankCapacity: 0 };
     const tankCapacity = vehicleInfo.tankCapacity ?? 0;
@@ -302,7 +396,7 @@ function VehicleReportsModal({
                     {r.timestamp ? new Date(r.timestamp).toLocaleDateString() : "-"}
                   </td>
                   <td className="border p-2">{getVehicleStatus(r)}</td>
-                  <td className="border p-2">{fuel[1]}</td>
+                  <td className="border p-2">{fuel[1] ?? "-"}</td>
                   <td className="border p-2">
                     <button
                       className="text-blue-600 underline"
@@ -346,7 +440,10 @@ function ChecklistModal({ report, onClose, onDelete }: any) {
           <div className="space-y-1 text-sm mb-6">
             {report.checklist.map((item: any, i: number) => (
               <p key={i}>
-                {item.label} - <span className="font-bold">{item.status}</span>
+                {item.label} -{" "}
+                <span className={`font-bold ${item.status === "Defective" ? "text-red-600" : "text-green-600"}`}>
+                  {item.status}
+                </span>
               </p>
             ))}
           </div>

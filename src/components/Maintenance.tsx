@@ -150,6 +150,17 @@ export default function Maintenance({
     );
   };
 
+  // Select All Functions
+  const selectAllGood = () => {
+    if (!confirm("Mark ALL items as GOOD?")) return;
+    setItems((prev) => prev.map((item) => ({ ...item, status: "Good" })));
+  };
+
+  const selectAllDefective = () => {
+    if (!confirm("Mark ALL items as DEFECTIVE?")) return;
+    setItems((prev) => prev.map((item) => ({ ...item, status: "Defective" })));
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
     if (!selectedPlate) return alert("Please select a plate number");
@@ -192,18 +203,18 @@ export default function Maintenance({
     }
   };
 
-  // ================== TODAY'S TRIPS ONLY FILTER ==================
+  // Today's trips filter
   const todayStr = new Date().toLocaleDateString("en-CA");
 
   const availableTrips = tripOptions
     .filter((trip) => {
       return (
-        trip.plateNumber === selectedPlate &&           // Match selected plate
-        trip.fuelSlipDate === todayStr &&               // Only TODAY
-        !existingMaintenance.includes(trip.id)          // Not yet maintained
+        trip.plateNumber === selectedPlate &&
+        trip.fuelSlipDate === todayStr &&
+        !existingMaintenance.includes(trip.id)
       );
     })
-    .sort((a, b) => b.timestamp - a.timestamp);         // Newest first
+    .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -234,7 +245,7 @@ export default function Maintenance({
           value={selectedPlate}
           onChange={(e) => {
             setSelectedPlate(e.currentTarget.value);
-            setSelectedTripId(""); // Reset trip when plate changes
+            setSelectedTripId("");
           }}
           className="w-full border p-2 rounded mt-1"
         >
@@ -244,11 +255,9 @@ export default function Maintenance({
         </select>
       </div>
 
-      {/* Trip Selection - ONLY TODAY'S UNMAINTAINED TRIPS */}
+      {/* Trip Selection */}
       <div className="mb-6">
-        <label className="font-semibold block mb-1">
-          Today's Trip:
-        </label>
+        <label className="font-semibold block mb-1">Today's Trip:</label>
         <select
           value={selectedTripId}
           onChange={(e) => setSelectedTripId(e.currentTarget.value)}
@@ -273,14 +282,32 @@ export default function Maintenance({
         )}
       </div>
 
-      {/* Checklist Table */}
+      {/* Checklist Table with Small Select All Buttons */}
       <table className="w-full border border-gray-300 mb-6">
         <thead>
           <tr className="bg-gray-100">
             <th className="border px-2 py-1">#</th>
             <th className="border px-2 py-1 text-left">Item</th>
-            <th className="border px-2 py-1">Good</th>
-            <th className="border px-2 py-1">Defective</th>
+            <th className="border px-2 py-1 text-center">
+              Good
+              <br />
+              <button
+                onClick={selectAllGood}
+                className="text-[10px] mt-1 px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded"
+              >
+                All Good
+              </button>
+            </th>
+            <th className="border px-2 py-1 text-center">
+              Defective
+              <br />
+              <button
+                onClick={selectAllDefective}
+                className="text-[10px] mt-1 px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded"
+              >
+                All Defective
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
