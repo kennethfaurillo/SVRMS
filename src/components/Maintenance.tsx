@@ -123,6 +123,20 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
       prev.map(item => (item.id === id ? { ...item, status } : item))
     );
   };
+  const selectAllGood = () => {
+  if (!confirm("Mark ALL items as GOOD?")) return;
+  setItems((prev) => prev.map((item) => ({ ...item, status: "Good" })));
+};
+
+const selectAllDefective = () => {
+  if (!confirm("Mark ALL items as DEFECTIVE?")) return;
+  setItems((prev) => prev.map((item) => ({ ...item, status: "Defective" })));
+};
+
+const clearAll = () => {
+  if (!confirm("Clear ALL selections?")) return;
+  setItems((prev) => prev.map((item) => ({ ...item, status: undefined })));
+};
 
   const handleSubmit = async () => {
   if (isSubmitting) return;
@@ -288,37 +302,66 @@ const mechanicSigRef = useRef<SignatureCanvas>(null);
       {/* Checklist Table */}
       <table className={`w-full mb-6 border transition-colors
        ${darkMode ? "border-gray-700 text-gray-100" : "border-gray-300 text-gray-900"}`}>
-        <thead>
-          <tr className={`${darkMode ? "bg-gray-800" : "bg-gray-100"}`}>
-            <th className="border px-2 py-1">#</th>
-            <th className="border px-2 py-1 text-left">Item</th>
-            <th className="border px-2 py-1">Good</th>
-            <th className="border px-2 py-1">Defective</th>
-          </tr>
-        </thead>
+       <thead>
+        <tr className={`${darkMode ? "bg-gray-800" : "bg-gray-100"}`}>
+          <th className="border px-3 py-3">#</th>
+          <th className="border px-3 py-3 text-left">Item</th>
+          <th className="border px-3 py-3 text-center">
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-medium">Good</span>
+              <button
+                onClick={selectAllGood}
+                className="text-xs px-4 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium"
+              >
+                Select all
+              </button>
+            </div>
+          </th>
+          <th className="border px-3 py-3 text-center">
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-medium">Defective</span>
+              <button
+                onClick={selectAllDefective}
+                className="text-xs px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-medium"
+              >
+                Select all
+              </button>
+            </div>
+          </th>
+          <th className="border px-3 py-3 text-center w-28">
+            <button
+              onClick={clearAll}
+              className="text-xs px-5 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded font-medium"
+            >
+              Clear all
+            </button>
+          </th>
+        </tr>
+      </thead>
         <tbody>
-          {items.map(item => (
-            <tr key={item.id}>
-              <td className="border px-2 py-1">{item.id}</td>
-              <td className="border px-2 py-1">{item.label}</td>
-              <td className="border text-center">
-                <input
-                  type="radio"
-                  name={`status-${item.id}`}
-                  checked={item.status === "Good"}
-                  onChange={() => handleStatusChange(item.id, "Good")}
-                />
-              </td>
-              <td className="border text-center">
-                <input
-                  type="radio"
-                  name={`status-${item.id}`}
-                  checked={item.status === "Defective"}
-                  onChange={() => handleStatusChange(item.id, "Defective")}
-                />
-              </td>
-            </tr>
-          ))}
+         {items.map((item) => (
+          <tr key={item.id} className={darkMode ? "hover:bg-gray-800" : "hover:bg-gray-50"}>
+            <td className="border px-3 py-3 text-center">{item.id}</td>
+            <td className="border px-3 py-3">{item.label}</td>
+            <td className="border px-3 py-3 text-center">
+              <input
+                type="checkbox"
+                checked={item.status === "Good"}
+                onChange={() => handleStatusChange(item.id, "Good")}
+                className="w-5 h-5"
+              />
+            </td>
+            <td className="border px-3 py-3 text-center">
+              <input
+                type="checkbox"
+                checked={item.status === "Defective"}
+                onChange={() => handleStatusChange(item.id, "Defective")}
+                className="w-5 h-5"
+              />
+            </td>
+            <td className="border px-3 py-3"></td>   {/* Empty cell para sa Clear All column */}
+          </tr>
+        ))}
         </tbody>
       </table>
 

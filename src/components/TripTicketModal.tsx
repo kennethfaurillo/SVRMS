@@ -277,25 +277,44 @@ const formatETA = (isoString?: string): string => {
 
     const tripTicketNo = tripData.tripCode || "N/A";
 
+    const mechanicName = tripData.mechanicName || "________________________";
+    const recommendedBy = tripData.recommendedBy || "________________________";
+    const approvedBy     = tripData.approvedBy     || "________________________";
+
     const log = tripData.driverLog || {};
+
+    const refuelDisplay = (() => {
+  if (!maintenanceData?.driverSection?.balanceInTank) return "";
+
+  const balance = Number(maintenanceData.driverSection.balanceInTank);
+  const plate = (tripData?.requestedVehicle || tripData?.vehicleAssigned || "").toUpperCase();
+
+  const isMotorcycle = plate.includes("TRYC") || plate.includes("MC") || plate.includes("MOTOR");
+  const fullTank = isMotorcycle ? 10 : 20;
+  const threshold = fullTank * 0.20;
+
+  if (balance <= threshold) {
+    return `${Math.ceil(fullTank - balance)} L`;
+  }
+
+  return "";
+})();
 
     return `
       <html>
         <head>
           <title>DRIVER'S TRIP TICKET</title>
           <style>
-            @page { size: A4 portrait; margin: 5mm; }
+            @page {size: A4; margin: 8mm;}
             body { font-family: Arial, sans-serif; color: #000; margin:0; padding:0; }
             .ticket {
               width: 100%;
               border: 3px solid #000;
-              padding: 12px 15px;
+              padding: 12px 14px;
               box-sizing: border-box;
               margin-bottom: 15px;
-              height: 48%;
-              display: flex;
-              flex-direction: column;
               page-break-inside: avoid;
+              height: 48.5%;
             }
             .header { 
               display: flex; 
@@ -331,26 +350,54 @@ const formatETA = (isoString?: string): string => {
             .note {
               font-size: 12px;
               text-align: center;
-              margin: 10px 0 14px;
+              margin: 10px 0 25px;
               font-style: italic;
             }
             .log-section {
-              margin-top: 12px;
-              line-height: 2.05;
-              font-size: 13.8px;
-            }
-            .remarks-box {
-              border: 2px solid #000;
-              min-height: 65px;
-              padding: 8px;
               margin-top: 8px;
-              font-size: 13.5px;
+              line-height: 1.6;
+              font-size: 12.5px;
             }
+
+            .remarks-box {
+                border: 2px solid #000;
+                padding: 8px;
+                font-size: 12.5px;
+
+                flex-grow: 1;        
+                min-height: 40px;
+                max-height: 80px;    
+                overflow: hidden;    
+              }
+              .signatures {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 15px;
+              }
+
+              .signature-box {
+                width: 30%;
+                text-align: center;
+                font-size: 12px;
+              }
+
+              .signature-line {
+                border-top: 2px solid #000;
+                margin-bottom: 5px;
+                height: 20px;
+              }
+                 .page {
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: space-between;
+                  height: 100vh;
+                  page-break-after: always;
+                }
           </style>
         </head>
         <body>
 
-          <!-- PAGE 1: DALAWANG DRIVER'S TRIP TICKET (HINDI BINAGO) -->
+           <div class="page">
           <div class="ticket">
             <div class="header">
               <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
@@ -371,15 +418,38 @@ const formatETA = (isoString?: string): string => {
               <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
               <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
               <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
-            </table>
+              ${refuelDisplay ? `
+              <tr>
+                <th>Refuel</th>
+                <td colspan="3" style="color:red; font-weight:bold;">
+                  ${refuelDisplay}
+                </td>
+              </tr>
+              ` : ""}
+              </table>
             <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
             <div class="signatures" style="margin-top:auto;">
-              <div class="signature-box"><div class="signature-line"></div>Mechanic</div>
-              <div class="signature-box"><div class="signature-line"></div>Division Mgr.</div>
-              <div class="signature-box"><div class="signature-line"></div>Asst. Chief</div>
+              <div class="signature-box">
+                <div>${mechanicName}</div>
+                <div class="signature-line"></div>
+                Mechanic
+              </div>
+
+              <div class="signature-box">
+                <div>${recommendedBy}</div>
+                <div class="signature-line"></div>
+                Division Mgr.
+              </div>
+
+              <div class="signature-box">
+                <div>${approvedBy}</div>
+                <div class="signature-line"></div>
+                Asst. Chief
+              </div>
             </div>
           </div>
 
+           <div class="page">
           <div class="ticket">
             <div class="header">
               <img src="${window.location.origin}/images/PIWAD-LOGO.png" class="logo" alt="PIWAD">
@@ -400,63 +470,166 @@ const formatETA = (isoString?: string): string => {
               <tr><th>Estimated Time of Arrival</th><td colspan="3">${eta}</td></tr>
               <tr><th>Speedometer Reading</th><td colspan="3">${speedoReading} km</td></tr>
               <tr><th>Fuel in Tank</th><td colspan="3">${fuelInTankDisplay}</td></tr>
-            </table>
+              ${refuelDisplay ? `
+                <tr>
+                  <th>Refuel</th>
+                  <td colspan="3" style="color:red; font-weight:bold;">
+                    ${refuelDisplay}
+                  </td>
+                </tr>
+                ` : ""}
+              </table>
             <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
             <div class="signatures" style="margin-top:auto;">
-              <div class="signature-box"><div class="signature-line"></div>Mechanic</div>
-              <div class="signature-box"><div class="signature-line"></div>Division Mgr.</div>
-              <div class="signature-box"><div class="signature-line"></div>Asst. Chief</div>
+             <div class="signature-box">
+                <div>${mechanicName}</div>
+                <div class="signature-line"></div>
+                Mechanic
+              </div>
+
+              <div class="signature-box">
+                <div>${recommendedBy}</div>
+                <div class="signature-line"></div>
+                Division Mgr.
+              </div>
+
+              <div class="signature-box">
+                <div>${approvedBy}</div>
+                <div class="signature-line"></div>
+                Asst. Chief
+              </div>
             </div>
           </div>
 
-          <!-- PAGE 2: DALAWANG LETTER B SA ISANG PAPER (Mas maluwag ang Remarks) -->
-          <div class="ticket" style="page-break-before: always; height: 48%;">
+       <div class="ticket">
             <h2 style="margin:5px 0 10px; font-size:17.5px;">B. TO BE FILLED BY THE DRIVER</h2>
-            <div class="log-section">
-              1. Time of Departure from Office/Garage ___________________________ ${log.timeDepartureOffice || ""}<br/>
-              2. Time of Arrival back to Office/Garage ___________________________ ${log.timeArrivalBackOffice || ""}<br/><br/>
+            <div class="log-section" style="line-height: 1.8;">
+              1. Time of Departure from Office/Garage 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 160px; display: inline-block; text-align: center;">
+                ${log.timeDepartureOffice || "&nbsp;"}
+              </span><br/>
 
-              3. Gasoline Issued purchased and consumed _______________________ Liters<br/>
-                a. Balance In tank _______________________ Liters ${log.balanceInTankStart || ""}<br/>
-                b. Add purchased during trip _______________________ Liters ${log.purchasedDuringTrip || ""}<br/>
-                <strong>TOTAL:</strong> _______________________ Liters ${log.totalFuel || ""}<br/>
-                c. Deduct Used During the Trip (To and From) _______________________ Liters ${log.usedDuringTrip || ""}<br/>
-                d. Balance In Tank at the end of trip _______________________ Liters ${log.balanceInTankEnd || ""}<br/><br/>
+              2. Time of Arrival back to Office/Garage 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 160px; display: inline-block; text-align: center;">
+                ${log.timeArrivalBackOffice || "&nbsp;"}
+              </span><br/><br/>
+
+              3. Gasoline Issued purchased and consumed 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 140px; display: inline-block; text-align: center;">
+                ${log.gasolineIssuedConsumed || "&nbsp;"}
+              </span> Liters<br/>
+
+                a. Balance In tank 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.balanceInTankStart || "&nbsp;"}
+              </span> Liters<br/>
+
+                b. Add purchased during trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.purchasedDuringTrip || "&nbsp;"}
+              </span> Liters<br/>
+
+                <strong>TOTAL:</strong> 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.totalFuel || "&nbsp;"}
+              </span> Liters<br/>
+
+                c. Deduct Used During the Trip (To and From) 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.usedDuringTrip || "&nbsp;"}
+              </span> Liters<br/>
+
+                d. Balance In Tank at the end of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.balanceInTankEnd || "&nbsp;"}
+              </span> Liters<br/><br/>
 
               4. Speedometer readings if any:<br/>
-                At beginning of trip ________________________ kms. ${log.speedometerBegin || ""}<br/>
-                At end of trip ________________________ kms. ${log.speedometerEnd || ""}<br/>
-                Distance Travelled/DIVISOR _____ km/liters ________________________ kms. ${log.distanceTravelled || ""}<br/><br/>
+                At beginning of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.speedometerBegin || "&nbsp;"}
+              </span> kms.<br/>
 
+                At end of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.speedometerEnd || "&nbsp;"}
+              </span> kms.<br/>
+
+                Distance Travelled/DIVISOR _____ km/liters 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.distanceTravelled || "&nbsp;"}
+              </span> kms.<br/><br/>
               5. REMARKS:
             </div>
             <div class="remarks-box">
-              ${log.remarks || ""}
+              ${log.remarks || "N/A"}
             </div>
           </div>
 
+          <!-- Duplicate Letter B -->
           <div class="ticket">
             <h2 style="margin:5px 0 10px; font-size:17.5px;">B. TO BE FILLED BY THE DRIVER</h2>
-            <div class="log-section">
-              1. Time of Departure from Office/Garage ___________________________ ${log.timeDepartureOffice || ""}<br/>
-              2. Time of Arrival back to Office/Garage ___________________________ ${log.timeArrivalBackOffice || ""}<br/><br/>
+            <div class="log-section" style="line-height: 1.8;">
+              1. Time of Departure from Office/Garage 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 160px; display: inline-block; text-align: center;">
+                ${log.timeDepartureOffice || "&nbsp;"}
+              </span><br/>
 
-              3. Gasoline Issued purchased and consumed _______________________ Liters<br/>
-                a. Balance In tank _______________________ Liters ${log.balanceInTankStart || ""}<br/>
-                b. Add purchased during trip _______________________ Liters ${log.purchasedDuringTrip || ""}<br/>
-                <strong>TOTAL:</strong> _______________________ Liters ${log.totalFuel || ""}<br/>
-                c. Deduct Used During the Trip (To and From) _______________________ Liters ${log.usedDuringTrip || ""}<br/>
-                d. Balance In Tank at the end of trip _______________________ Liters ${log.balanceInTankEnd || ""}<br/><br/>
+              2. Time of Arrival back to Office/Garage 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 160px; display: inline-block; text-align: center;">
+                ${log.timeArrivalBackOffice || "&nbsp;"}
+              </span><br/><br/>
+
+              3. Gasoline Issued purchased and consumed 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 140px; display: inline-block; text-align: center;">
+                ${log.gasolineIssuedConsumed || "&nbsp;"}
+              </span> Liters<br/>
+
+                a. Balance In tank 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.balanceInTankStart || "&nbsp;"}
+              </span> Liters<br/>
+
+                b. Add purchased during trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.purchasedDuringTrip || "&nbsp;"}
+              </span> Liters<br/>
+
+                <strong>TOTAL:</strong> 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.totalFuel || "&nbsp;"}
+              </span> Liters<br/>
+
+                c. Deduct Used During the Trip (To and From) 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.usedDuringTrip || "&nbsp;"}
+              </span> Liters<br/>
+
+                d. Balance In Tank at the end of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 110px; display: inline-block; text-align: center;">
+                ${log.balanceInTankEnd || "&nbsp;"}
+              </span> Liters<br/><br/>
 
               4. Speedometer readings if any:<br/>
-                At beginning of trip ________________________ kms. ${log.speedometerBegin || ""}<br/>
-                At end of trip ________________________ kms. ${log.speedometerEnd || ""}<br/>
-                Distance Travelled/DIVISOR _____ km/liters ________________________ kms. ${log.distanceTravelled || ""}<br/><br/>
+                At beginning of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.speedometerBegin || "&nbsp;"}
+              </span> kms.<br/>
+
+                At end of trip 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.speedometerEnd || "&nbsp;"}
+              </span> kms.<br/>
+
+                Distance Travelled/DIVISOR _____ km/liters 
+              <span style="border-bottom: 2px solid #000; padding: 0 6px; min-width: 100px; display: inline-block; text-align: center;">
+                ${log.distanceTravelled || "&nbsp;"}
+              </span> kms.<br/><br/>
 
               5. REMARKS:
             </div>
             <div class="remarks-box">
-              ${log.remarks || ""}
+              ${log.remarks || "N/A"}
             </div>
           </div>
 
