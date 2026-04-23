@@ -1,4 +1,4 @@
-import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc, setDoc, collection } from "firebase/firestore";
 import { useMemo, useState } from "preact/hooks";
 import { REQUEST_STATUSES } from "../constants";
 import { useAuth } from "../contexts/AuthContext";
@@ -7,6 +7,7 @@ import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
 import type { Request, RequestKey } from "../types";
 import { exportToCsv, getCurrentDate, getCurrentTime } from "../utils";
+import TripTicketModal from "./TripTicketModal";
 
 interface RequestsTableProps {
     darkMode: boolean;
@@ -23,12 +24,50 @@ export default function RequestsTable({
     // Data of request being edited
     const [requestEditData, setRequestEditData] = useState<Request | null>(null);
     // Request ID that is currently updating/processing
+    const [showTripTicket, setShowTripTicket] = useState(false);
+    const [editableRequest, setEditableRequest] = useState<Request | null>(null);
     const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const { isAdmin } = useAuth();
     const { requests } = useRequests();
     const { serviceVehicles, departments } = useConstants();
 
+    // ⭐ ADDED START - Updated handleApproveClick to include passengers in trips
+    const approveRequest = async (request: Request) => {
+        if (!request.id) return;
+        setUpdatingRequestId(request.id);
+        try {
+            // 1️⃣ Update the request status to Approved
+            const requestRef = doc(db, 'requests', request.id);
+            await updateDoc(requestRef, { status: 'Approved' });
+
+            // 2️⃣ Add or update the trip in trips collection
+            const tripRef = doc(db, 'trips', request.id); // using same ID as request
+            const tripData = {
+                requestId: request.id,
+                requesterName: request.requesterName,
+                department: request.department,
+                requestedVehicle: request.requestedVehicle,
+                destination: request.destination,
+                purpose: request.purpose,
+                estimatedArrival: request.estimatedArrival || null,
+                isDriverRequested: request.isDriverRequested,
+                delegatedDriverName: request.delegatedDriverName || null,
+                passengers: request.passengers || [], // ✅ Include all passengers
+                status: 'Approved',
+                timestamp: request.timestamp || null,
+                remarks: request.remarks || '',
+            };
+            await setDoc(tripRef, tripData, { merge: true }); // merge:true para hindi mawawala ang existing fields
+
+        } catch (error) {
+            console.error("Error approving request:", error);
+        } finally {
+            setUpdatingRequestId(null);
+        }
+    };
+    // ⭐ ADDED END
+ 
     const filteredRequests = useMemo(() => {
         if (dateFilter === 'all') return requests;
 
@@ -149,7 +188,7 @@ export default function RequestsTable({
             return newData;
         });
     };
-
+      
     // Function to save updated request
     const saveEditedRequest = async (requestId: string) => {
         console.log(requestEditData)
@@ -172,6 +211,7 @@ export default function RequestsTable({
                 requestedVehicle: requestEditData.requestedVehicle,
                 requesterName: requestEditData.requesterName,
                 department: requestEditData.department,
+                passengers: requestEditData.passengers || [],
                 isDriverRequested: requestEditData.isDriverRequested,
                 delegatedDriverName: requestEditData.delegatedDriverName ?? null,
                 purpose: requestEditData.purpose,
@@ -250,6 +290,7 @@ export default function RequestsTable({
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Request Details</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Department</th>
+                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden md:table-cell">Passengers</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
                                 <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
@@ -416,7 +457,62 @@ export default function RequestsTable({
                                                 </div>
                                             )}
                                         </td>
+                                         
+                                         <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden md:table-cell`}>
+                                          {/* ⭐ ADDED START - Better Passengers Editor */}
+{editingRequestId === request.id ? (
+    <div className="space-y-1">
+        {(requestEditData?.passengers || []).map((passenger, index) => (
+            <input
+                key={index}
+                type="text"
+                value={passenger}
+                onChange={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const updatedPassengers = [...(requestEditData?.passengers || [])];
+                    updatedPassengers[index] = target.value;
 
+                    setRequestEditData(prev => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            passengers: updatedPassengers
+                        };
+                    });
+                }}
+                className={`w-full border rounded-md px-2 py-1 text-xs ${
+                    darkMode
+                        ? 'bg-gray-600 text-white border-gray-500'
+                        : 'border-gray-300'
+                }`}
+                placeholder={`Passenger ${index + 1}`}
+            />
+        ))}
+
+        {/* Add Passenger Button */}
+        <button
+            type="button"
+            onClick={() => {
+                setRequestEditData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        passengers: [...(prev.passengers || []), ""]
+                    };
+                });
+            }}
+            className="text-xs text-blue-500 hover:underline"
+        >
+            + Add Passenger
+        </button>
+    </div>
+) : (
+    request.passengers && request.passengers.length > 0
+        ? request.passengers.join(', ')
+        : <span className="text-gray-400">-</span>
+)}
+{/* ⭐ ADDED END */}
+                                        </td>
                                         {/* Purpose of Request - Always visible but truncated on mobile */}
                                         <td className={`px-2 sm:px-3 py-1.5 text-sm max-w-xs break-words border border-gray-200  ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                                             {editingRequestId === request.id ? (
@@ -592,101 +688,103 @@ export default function RequestsTable({
                                             )}
                                         </td>
 
-                                        {/* Actions (Update/Save/Cancel and Delete) - Always visible for admin */}
-                                        {isAdmin &&
-                                            <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
-                                                {editingRequestId === request.id ? (
-                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
+                                       {/* Actions (Update/Save/Cancel and Delete) */}
+                                    <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
+                                        {isAdmin && (
+                                            editingRequestId === request.id ? (
+                                                // EDIT MODE (Save / Cancel)
+                                                <div className="flex flex-row gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => request.id && saveEditedRequest(request.id)}
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${updatingRequestId === request.id
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                        }`}
+                                                    >
+                                                        {updatingRequestId === request.id ? 'Saving...' : 'Save'}
+                                                    </button>
+
+                                                    <button
+                                                        onClick={cancelRequestEditing}
+                                                        disabled={updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${updatingRequestId === request.id
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
+                                                        }`}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                // NORMAL MODE (Update / Trip Ticket / Approve / Delete)
+                                                <div className="flex flex-row gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => handleUpdateClick(request)}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                        ${isAdmin && updatingRequestId !== request.id
+                                                            ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
+                                                            : 'bg-blue-300 text-gray-200 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        Update
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditableRequest(request);
+                                                            setShowTripTicket(true);
+                                                        }}
+                                                        className="px-2 sm:px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition duration-150 ease-in-out cursor-pointer"
+                                                    >
+                                                        📋 Trip Ticket
+                                                    </button>
+
+                                                    {request.status === 'Pending' && (
                                                         <button
-                                                            onClick={() => request.id && saveEditedRequest(request.id)}
+                                                            onClick={() => handleApproveClick(request)}
                                                             disabled={updatingRequestId === request.id}
                                                             className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                }`}
+                                                            ${updatingRequestId !== request.id
+                                                                ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                : 'bg-green-300 text-gray-200 cursor-not-allowed'
+                                                            }`}
                                                         >
-                                                            <span className="hidden sm:inline">
-                                                                {updatingRequestId === request.id ? 'Saving...' : 'Save'}
-                                                            </span>
-                                                            <span className="sm:hidden">
-                                                                {updatingRequestId === request.id ? '⏳' : '💾'}
-                                                            </span>
+                                                            {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
                                                         </button>
-                                                        <button
-                                                            onClick={cancelRequestEditing}
-                                                            disabled={updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                            ${updatingRequestId === request.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">Cancel</span>
-                                                            <span className="sm:hidden">❌</span>
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1">
-                                                        <button
-                                                            onClick={() => handleUpdateClick(request)}
-                                                            disabled={!isAdmin || updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => handleDeleteClick(request)}
+                                                        disabled={!isAdmin || updatingRequestId === request.id}
+                                                        className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                         ${isAdmin && updatingRequestId !== request.id
-                                                                    ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                                                                    : 'bg-blue-300 text-gray-200 cursor-not-allowed'
-                                                                }`
-                                                            }
-                                                        >
-                                                            Update
-                                                        </button>
-                                                        {
-                                                            !(isAdmin && request.status == 'Pending') ? null :
-                                                                <button
-                                                                    onClick={() => handleApproveClick(request)}
-                                                                    disabled={!isAdmin || request.status !== 'Pending' || updatingRequestId === request.id}
-                                                                    className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && request.status === 'Pending' && updatingRequestId !== request.id
-                                                                            ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                            : 'bg-green-300 text-gray-200 cursor-not-allowed'
-                                                                        }`
-                                                                    }
-                                                                    title={request.status === 'Pending' ? 'Approve and assign to trip' : 'Only pending requests can be approved'}
-                                                                >
-                                                                    <span className="hidden sm:inline">
-                                                                        {updatingRequestId === request.id ? 'Processing...' : 'Approve'}
-                                                                    </span>
-                                                                    <span className="sm:hidden">
-                                                                        {updatingRequestId === request.id ? '⏳' : 'Approve'}
-                                                                    </span>
-                                                                </button>
-                                                        }
-                                                        <button
-                                                            onClick={() => handleDeleteClick(request)}
-                                                            disabled={!isAdmin || updatingRequestId === request.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                        ${isAdmin && updatingRequestId !== request.id
-                                                                    ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
-                                                                    : 'bg-red-300 text-gray-200 cursor-not-allowed'
-                                                                }`
-                                                            }
-                                                        >
-                                                            <span className="hidden sm:inline">
-                                                                {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
-                                                            </span>
-                                                            <span className="sm:hidden">
-                                                                {updatingRequestId === request.id ? '⏳' : 'Delete'}
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        }
+                                                            ? 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
+                                                            : 'bg-red-300 text-gray-200 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        {updatingRequestId === request.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            )
+                                        )}
+                                    </td>
                                     </tr>
                                 );
                             })}
                         </tbody>
                     </table>
+                    {showTripTicket && editableRequest?.id && (
+                    <TripTicketModal
+                        showTripTicket={showTripTicket}
+                        setShowTripTicket={setShowTripTicket}
+                        requestId={editableRequest.id} 
+                        darkMode={darkMode}
+                    />
+                    )}
                 </div>
             )}
         </div>

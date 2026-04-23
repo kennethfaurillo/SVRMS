@@ -1,10 +1,12 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import type { Department, Request, ServiceVehicle } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
-import { Timestamp } from "firebase/firestore";
+import { collection, getDocs, Timestamp, query, onSnapshot, orderBy} from "firebase/firestore";
 import { useConstants } from "../hooks/useConstants";
 import useRequests from "../hooks/useRequests";
 import useTrips from "../hooks/useTrips";
+import { h } from "preact";
+import { firebaseFirestore } from "../firebase";
 
 interface RequestFormProps {
     darkMode: boolean
@@ -13,6 +15,10 @@ interface RequestFormProps {
 
 export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const [requestedVehicle, setRequestedVehicle] = useState<ServiceVehicle | null>(null);
+    const [hoveredVehicle, setHoveredVehicle] = useState<ServiceVehicle | null>(null);
+    const [isVehicleOpen, setIsVehicleOpen] = useState(false);
+    const [defectiveVehicles, setDefectiveVehicles] = useState<Set<string>>(new Set());
+    const dropdownRef = useRef<HTMLDivElement>(null);   
     const [purpose, setPurpose] = useState('');
     const [destination, setDestination] = useState('');
     const [requesterName, setRequesterName] = useState('');
@@ -32,7 +38,51 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
     const { todayTrips } = useTrips();
 
     const unavailableVehicles = todayTrips.map(trip => [trip.vehicleAssigned, trip.estimatedArrival || new Date(`${getCurrentDate()}T23:59:59`).toISOString()]).filter(req => req[0] !== null);
+    const [passengers, setPassengers] = useState<string[]>(['']);
+  useEffect(() => {
+        const q = query(
+            collection(firebaseFirestore, "maintenanceReports"),
+            orderBy("timestamp", "desc")
+        );
 
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const defectiveSet = new Set<string>();
+
+            snapshot.docs.forEach((doc) => {   
+                const data = doc.data();
+                const plateNumber = data.plateNumber as string;
+
+                if (!plateNumber) return;
+
+                
+                if (data.status === "Defective") {
+                    defectiveSet.add(plateNumber);
+                    return;
+                }
+
+                // Check checklist items
+                const checklist = data.checklist as Array<{ status?: "Good" | "Defective" }> | undefined;
+                const hasDefectiveItem = checklist?.some(item => item.status === "Defective");
+
+                if (hasDefectiveItem) {
+                    defectiveSet.add(plateNumber);
+                }
+            });
+
+            setDefectiveVehicles(defectiveSet);
+        });
+
+        return () => unsubscribe();
+    }, []);
+    useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsVehicleOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
@@ -45,7 +95,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
 
         setIsLoading(true);
 
-        try {
+         try {
             const requestData: Request = {
                 requesterName,
                 requestedVehicle: requestedVehicle ? requestedVehicle.name : null,
@@ -57,11 +107,13 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                 estimatedArrival: estimatedArrival ? new Date(`${dateOfRequest}T${estimatedArrival}`).toISOString() : undefined,
                 timestamp: Timestamp.fromDate(new Date()),
                 remarks,
-                status: 'Pending' as const
+                status: 'Pending' as const,
+                // ** include passengers **
+                passengers: passengers.filter(p => p.trim() !== ''),
             }
             console.log(requestData)
 
-            await onSubmit(requestData); // Call the onSubmit prop with the request data
+            await onSubmit(requestData); 
 
             // Clear form after successful submission
             setRequesterName('');
@@ -73,6 +125,7 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
             setRemarks('');
             setDateOfRequest(getCurrentDate());
             setTimeOfRequest(getCurrentTime());
+             setPassengers(['']);
         } catch (error) {
             console.error('Error submitting request:', error);
         } finally {
@@ -80,9 +133,11 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
         }
     }
 
-    return (
-        <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-4 rounded-lg shadow-inner`}>
-            <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>Record New Request</h2>
+      return (
+        <div className={`p-6 rounded-xl shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-6 ${darkMode ? 'text-gray-100' : 'text-gray-700'}`}>
+                Record New Request
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* First row - Personnel, Department, Service Vehicle */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -132,45 +187,73 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                     </div>
 
                     {/* Service Vehicle */}
-                    <div className="flex flex-col space-y-2">
-                        <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            Service Vehicle *
-                        </label>
-                        <div className="flex items-center space-x-2">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4 text-gray-500"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M3 7h9v10H3V7zm9 0h5l4 4v6h-9V7zm-5 10a2 2 0 11-4 0 2 2 0 014 0zm12 0a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <select
-                                className={`flex-1 px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                value={requestedVehicle?.name || ''}
-                                onChange={(e) => setRequestedVehicle(serviceVehicles.find(sv => sv.name == (e.target as HTMLSelectElement).value) || null)}
-                                disabled={isLoading}
-                                required
-                            >
-                                <option value="">Select Service Vehicle</option>
-                                {serviceVehicles.map((serviceVehicle) => {
-                                    const vehicleUnavailable = unavailableVehicles.find(uv => uv[0] === serviceVehicle.name);
-                                    const isVehicleUnavailable = vehicleUnavailable !== undefined;
-                                    return (
-                                        // temporarily allow selection of unavailable vehicles
-                                        <option key={serviceVehicle.name} value={serviceVehicle.name}
-                                            className={isVehicleUnavailable ? 'text-red-500/80 font-semibold' : ''}>
-                                            {serviceVehicle.name} {isVehicleUnavailable ? `(Until ${new Date(vehicleUnavailable?.[1] as string).toLocaleTimeString()})` : ''}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                    </div>
-                </div>
+                   <div className="flex flex-col space-y-2 relative" ref={dropdownRef}>
+    <label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+        Service Vehicle *
+    </label>
+    
+    <div
+        className={`px-3 py-2 text-sm border rounded-md cursor-pointer transition-colors
+            ${darkMode 
+                ? "bg-gray-700 text-white border-gray-600 hover:border-gray-500" 
+                : "bg-white border-gray-300 hover:border-gray-400"
+            } 
+            ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={() => !isLoading && setIsVehicleOpen(!isVehicleOpen)}
+    >
+        {requestedVehicle?.name || "Select Service Vehicle"}
+    </div>
 
+    {/* Dropdown list */}
+    {isVehicleOpen && (
+        <div className={`absolute z-50 mt-1 w-full max-h-60 overflow-auto border rounded-md shadow-lg
+            ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-300"}`}>
+            {serviceVehicles.map(vehicle => {
+                const isUnavailable = unavailableVehicles.some(uv => uv[0] === vehicle.name);
+                const isDefective = defectiveVehicles.has(vehicle.name);
+                const isBlocked = isUnavailable || isDefective;
+
+                return (
+                    <div
+                        key={vehicle.name}
+                        onClick={() => {
+                            if (isBlocked || isLoading) return;
+                            setRequestedVehicle(vehicle);
+                            setIsVehicleOpen(false);
+                        }}
+                        onMouseEnter={() => setHoveredVehicle(vehicle)}
+                        onMouseLeave={() => setHoveredVehicle(null)}
+                        className={`px-3 py-2.5 text-sm cursor-pointer transition-colors
+                            ${isBlocked 
+                                ? "text-red-500 cursor-not-allowed opacity-75" 
+                                : darkMode 
+                                    ? "hover:bg-gray-700 text-gray-200" 
+                                    : "hover:bg-blue-50 hover:text-blue-700"
+                            }`}
+                    >
+                        {vehicle.name}
+                        {isUnavailable && ` (Until ${new Date(unavailableVehicles.find(uv => uv[0] === vehicle.name)?.[1] as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+                        {isDefective && " — DEFECTIVE"}
+                    </div>
+                );
+            })}
+        </div>
+    )}
+
+    {/* Hover image preview */}
+    {hoveredVehicle?.image && isVehicleOpen && (
+        <div className={`absolute left-full top-0 ml-2 w-56 border rounded-md shadow-lg p-2 z-50
+            ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-300"}`}>
+            <img src={hoveredVehicle.image} alt={hoveredVehicle.name} className="w-full rounded" />
+        </div>
+            )}
+          </div>
+        </div>
+                {defectiveVehicles.size > 0 && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                ⚠️ Vehicles marked as DEFECTIVE from Maintenance Report cannot be selected.
+                            </p>
+                        )}
                 {/* Second row - Driver Required, Purpose, Destination */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Driver Request */}
@@ -302,6 +385,45 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
                         </div>
                     </div>
                 </div>
+
+                <div className="flex flex-col space-y-2">
+  <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+    Passengers
+  </label>
+  {passengers.map((passenger, index) => (
+    <div key={index} className="flex items-center space-x-2">
+      <input
+        type="text"
+        placeholder={`Passenger ${index + 1}`}
+        className={`flex-1 px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        value={passenger}
+        onChange={(e: h.JSX.TargetedEvent<HTMLInputElement, Event>) => {
+          const target = e.currentTarget; // use currentTarget
+          const newPassengers = [...passengers];
+          newPassengers[index] = target.value;
+          setPassengers(newPassengers);
+        }}
+        disabled={isLoading}
+      />
+      {passengers.length > 1 && (
+        <button
+          type="button"
+          className="text-red-500 px-2 py-1 text-sm"
+          onClick={() => setPassengers(passengers.filter((_, i) => i !== index))}
+        >
+          Remove
+        </button>
+      )}
+    </div>
+  ))}
+        <button
+        type="button"
+        className="text-blue-600 text-sm mt-1 cursor-pointer hover:underline"
+        onClick={() => setPassengers([...passengers, ''])}
+        >
+        + Add Passenger
+        </button>
+        </div>
                 {/* Fourth row - Remarks and Submit */}
                 <div className="flex flex-col space-y-4">
                     {/* Remarks */}

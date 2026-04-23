@@ -11,6 +11,8 @@ import RequestForm from './components/RequestForm';
 import RequestsTable from './components/RequestsTable';
 import Sidebar from './components/Sidebar';
 import TripsTable from './components/TripsTable';
+import Maintenance from './components/Maintenance';
+import Analytics from './components/Analytics';
 import { useAuth } from './contexts/AuthContext';
 import { firebaseFirestore } from './firebase';
 import useRequests from './hooks/useRequests';
@@ -30,7 +32,28 @@ export function App() {
   const [darkMode, setDarkMode] = useTheme();
   const { addRequest } = useRequests(handleRequestsChange);
   const { trips } = useTrips(handleTripChange);
-  const { user, isAdmin, signOutUser } = useAuth();
+  const { user, userProfile, isAdmin, signOutUser } = useAuth();
+
+  // Global Today Header
+const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+useEffect(() => {
+  const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
+  return () => clearInterval(timer);
+}, []);
+
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString('en-PH', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+};
 
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -66,15 +89,22 @@ export function App() {
     setDarkMode(prevMode => !prevMode);
   };
   // Function to handle logout
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-      setMessage('Logged out successfully');
-    } catch (error) {
-      console.error('Logout error:', error);
-      setMessage('Error logging out');
-    }
-  };
+  // Function to handle logout
+const handleLogout = async () => {
+  try {
+    await signOutUser();
+    setMessage('Logged out successfully');
+    
+    // Force refresh ng UI
+    setTimeout(() => {
+      window.location.reload();   // ← Temporary fix para siguradong mag-update
+    }, 800);
+    
+  } catch (error) {
+    console.error('Logout error:', error);
+    setMessage('Error logging out');
+  }
+};
   // Function to add a new notification
   const addNotification = (type: Notification['type'], details: string, sound = 'request') => {
     const timestamp = new Date().toLocaleTimeString();
@@ -185,6 +215,11 @@ export function App() {
 
     setUpdatingTripId(tripId);
     try {
+
+      const passengersArray = typeof currentEditTripData.passengers === 'string'
+            ? currentEditTripData.passengers.split(',').map(p => p.trim()).filter(p => p !== '')
+            : currentEditTripData.passengers;
+
       const dataToUpdate = {
         dateTime: currentEditTripData.dateTime,
         estimatedArrival: currentEditTripData.estimatedArrival,
@@ -193,7 +228,8 @@ export function App() {
         personnel: currentEditTripData.personnel,
         purpose: currentEditTripData.purpose,
         destination: currentEditTripData.destination,
-        status: currentEditTripData.status
+        status: currentEditTripData.status,
+        passengers: passengersArray
       };
 
       await updateDoc(doc(db, 'trips', tripId), dataToUpdate);
@@ -280,6 +316,7 @@ export function App() {
           vehicleAssigned: tripData?.vehicleAssigned || requestToApprove.requestedVehicle,
           driverName: tripData?.driverName || (requestToApprove.isDriverRequested === 'Yes' ? requestToApprove.delegatedDriverName || null : null),
           personnel: [requestToApprove.requesterName + '-' + requestToApprove.department],
+           passengers: (requestToApprove.passengers || []).map(p => p.trim()),
           purpose: [requestToApprove.purpose],
           destination: requestToApprove.destination,
           requestIds: [requestToApprove.id],
@@ -374,7 +411,7 @@ export function App() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
             <div className={'space-x-8'}>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center sm:text-left">
-                Service Vehicle Request System
+                General Service System
               </h1>
               {user && (
                 <div className={`text-xs sm:text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -384,29 +421,38 @@ export function App() {
             </div>
             <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               {/* Login/Logout Button */}
-              <button
-                onClick={!isAdmin ? () => setShowLoginModal(true) : handleLogout}
-                className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 ease-in-out ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'} cursor-pointer`}
-                title={!isAdmin ? "Sign In" : "Sign Out"}
-              >
-                {!isAdmin ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                    </svg>
-                    <span className="hidden sm:inline">Sign In</span>
-                    <span className="sm:hidden">Login</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    <span className="hidden sm:inline">Sign Out</span>
-                    <span className="sm:hidden">Logout</span>
-                  </>
-                )}
-              </button>
+             {/* FIXED Login/Logout Button - Works for Admin, Mechanic, at Driver */}
+            <button
+              onClick={
+                isAdmin || 
+                userProfile?.role === "mechanic" || 
+                userProfile?.role === "driver" 
+                  ? handleLogout 
+                  : () => setShowLoginModal(true)
+              }
+              className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+              } text-white cursor-pointer`}
+              title={
+                isAdmin || userProfile?.role ? "Sign Out" : "Sign In"
+              }
+            >
+              {isAdmin || userProfile?.role ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="hidden sm:inline">Sign Out</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="hidden sm:inline">Sign In</span>
+                </>
+              )}
+            </button>
 
               {/* Dark Mode Toggle */}
               <button
@@ -479,7 +525,10 @@ export function App() {
               </span>
             </div>
           )}
-
+           
+           <div className={`mb-4 p-3 rounded-md text-center font-medium ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-blue-100 text-gray-900'}`}>
+    Today: {formatDateTime(currentDateTime)}
+  </div>
 
           <Switch>
             <Route path='/request-form'>
@@ -510,13 +559,22 @@ export function App() {
                 handleMarkTripAsFulfilled={handleMarkTripAsFulfilled}
               />
             </Route>
-            <Route path='/analytics'>
-              <div className={'text-center text-xl'}>
-                Coming Soon!
-              </div>
-            </Route>
+           <Route path='/maintenance/automotive'>
+  <Maintenance category="Automotive" darkMode={darkMode} />
+</Route>
+<Route path="/analytics">
+  <Analytics darkMode={darkMode} />
+</Route>
+<Route path='/maintenance/motorcycle'>
+  <Maintenance category="Motorcycle" darkMode={darkMode} />
+</Route>
+  <Route path='/equipment-borrow'>
+  <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
+    <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
+  </div>
+</Route>
             <Route path='/'>
-              <Home />
+              <Home darkMode={darkMode} />
             </Route>
             <Route>Not Found!</Route>
           </Switch>
