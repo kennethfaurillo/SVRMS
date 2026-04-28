@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   isAdmin: boolean;
-  role: "admin" | "mechanic" | "driver" | "user";
+  role: "admin" | "mechanic" |"driver" | "user";
   signInUser: (username?: string, password?: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   isLoading: boolean;
@@ -96,11 +96,11 @@ const fetchUserProfile = async (uid: string) => {
       setUserProfile(null);
     }
   };
-   const getUserRole = (): "admin" | "mechanic" | "driver" | "user" => {
+   const getUserRole = (): "admin" | "mechanic" |"driver" | "user" => {
   if (isAdmin) return "admin";
   const profileRole = (userProfile?.role || "").toLowerCase().trim();
-  if (["admin", "mechanic", "driver"].includes(profileRole)) {
-    return profileRole as "admin" | "mechanic" | "driver";
+  if (["admin", "mechanic","driver"].includes(profileRole)) {
+    return profileRole as "admin" | "mechanic" |"driver";
   }
   return "user";
 };

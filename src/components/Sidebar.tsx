@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {ChartColumnIcon, ClipboardClockIcon, FileTextIcon, HomeIcon, MapPinCheckIcon, UserIcon, MenuIcon, XIcon, UsersIcon, CarIcon, BikeIcon } from "lucide-react";
+import {ChartColumnIcon, ClipboardClockIcon, FileTextIcon, HomeIcon, MapPinCheckIcon, UserIcon, MenuIcon, XIcon, UsersIcon, CarIcon, BikeIcon, ClipboardIcon, DropletIcon, WrenchIcon } from "lucide-react";
 import { Link, useRoute } from "wouter-preact";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -31,9 +31,48 @@ const sidebarItems: SidebarItem[] = [
     ],
     allowedRoles: ["admin", "mechanic", "driver"]
   },
-  { label: "Equipment Borrow", path: "/equipment-borrow", icon: <FileTextIcon stroke="white" size={20} /> },
+ {
+    label: "Equipment Borrow",
+    path: "/borrow-form",                    
+    icon: <FileTextIcon stroke="white" size={20} />,
+    subItems: [
+      { 
+        label: "Borrow Form", 
+        path: "/borrow-form",                
+        icon: <FileTextIcon stroke="white" size={16} /> 
+      },
+      { 
+        label: "Borrow Requests", 
+        path: "/borrow-requests",            
+        icon: <ClipboardClockIcon stroke="white" size={16} /> 
+      },
+      { 
+  label: "Checklist", 
+  path: "/borrow-checklist", 
+  icon: <ClipboardIcon stroke="white" size={16} /> 
+},
+    ],
+  },
   { label: "Analytics", path: "/analytics", icon: <ChartColumnIcon stroke="white" size={20} /> },
-  
+    { label: "Management", path: "/management", icon: <UsersIcon stroke="white" size={20} /> },
+
+  {
+    label: "Reports",
+    path: "/reports",
+    icon: <ClipboardIcon stroke="white" size={20} />,
+    allowedRoles: ["admin"],
+    subItems: [
+      { label: "Fuel Reports", path: "/fuel-reports", icon: <DropletIcon stroke="white" size={16} /> },
+        { label: "Maintenance Reports", path: "/maintenance-reports", icon: <WrenchIcon stroke="white" size={16} /> },
+      {
+  label: "Borrow Report",
+  path: "/borrow-report",
+  icon: <ClipboardIcon stroke="white" size={16} />
+}
+    
+    
+    ],
+  },
   
 ];
 

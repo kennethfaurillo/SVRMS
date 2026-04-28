@@ -1,4 +1,4 @@
-import { ChartColumnIcon, ClipboardClockIcon, FileTextIcon, MapPinCheckIcon, UsersIcon, FileBarChartIcon, ClipboardIcon, CarIcon, BikeIcon } from "lucide-react";
+import { ChartColumnIcon, ClipboardClockIcon, FileTextIcon, MapPinCheckIcon, UsersIcon, FileBarChartIcon, ClipboardIcon, CarIcon, BikeIcon, DropletIcon, WrenchIcon } from "lucide-react";
 import { useState, useEffect } from "preact/hooks";
 import type { ReactNode } from "preact/compat";
 import { Link } from "wouter-preact";
@@ -9,21 +9,21 @@ import { firebaseFirestore } from "../firebase";
 const vehicleTypes = {
   "SKU 532": { description: "SKU 532" },
   "SEH 336": { description: "SEH 336" },
-  "TRYC. NO. 02": { description: "TRYC. NO. 02" },
-  "TRYC. NO. 01": { description: "TRYC. NO. 01" },
-   "TRYC. NO. 03": { description: "TRYC. NO. 03" },
-   "SBA 1406": { description: "SBA 1406" },
-   "SAB 6183": { description: "SAB 6183" },
-   "SBA 1045": { description: "SBA 1045" },
-   "131202": { description: "131202" },
+  "TRYC. NO. 02": { description: "TRYC. NO. 02", imageUrl: "/images/TRYC. NO. 02.jpg" },
+  "TRYC. NO. 01": { description: "TRYC. NO. 01", imageUrl: "/images/TRYC. NO. 01.jpg" },
+   "TRYC. NO. 03": { description: "TRYC. NO. 03", imageUrl: "/images/TRYC. NO. 03.jpg" },
+   "SBA 1406": { description: "SBA 1406", imageUrl: "/images/SBA 1406.jpg" },
+   "SAB 6183": { description: "SAB 6183", imageUrl: "/images/SAB 6183.jpg"},
+   "SBA 1045": { description: "SBA 1045", imageUrl: "/images/SBA 1045.jpg" },
+   "131202": { description: "131202", imageUrl: "/images/131202.jpg" },
    "MV291": { description: "MV 291" },
    "MV231": { description: "MV 231" },
-   "131206": { description: "131206" },
-   "TRYC. NO. 04": { description: "TRYC. NO. 04" },
-   "SAB 6182": { description: "SAB 6182" },
-   "SAA 7857": { description: "SAA 7857" },
-   "SAA 6494": { description: "SAA 6494" },
-   "SEH 673": { description: "SEH 673" },
+   "131206": { description: "131206", imageUrl: "/images/131206.jpg" },
+   "TRYC. NO. 04": { description: "TRYC. NO. 04", imageUrl: "/images/TRYC. NO. 04.jpg" },
+   "SAB 6182": { description: "SAB 6182", imageUrl: "/images/SAB 6182.jpg" },
+   "SAA 7857": { description: "SAA 7857", imageUrl: "/images/SAA 7857.jpg" },
+   "SAA 6494": { description: "SAA 6494", imageUrl: "/images/SAA 6494.jpg" },
+   "SEH 673": { description: "SEH 673", imageUrl: "/images/SEH 673.jpg" },
    "MV287": { description: "MV 287" },
 };
 interface VehicleAvailabilityItem {
@@ -45,6 +45,8 @@ export default function Home({ darkMode }: HomeProps) {
   
     const { isAdmin, role } = useAuth();
     const [showMaintenance, setShowMaintenance] = useState(false);
+      const [showReports, setShowReports] = useState(false);
+  const [showEquipment, setShowEquipment] = useState(false);
     const [bulletinsData, setBulletinsData] = useState<any[]>([]);
     const [newTitle, setNewTitle] = useState("");
     const [newDesc, setNewDesc] = useState("");
@@ -65,52 +67,44 @@ export default function Home({ darkMode }: HomeProps) {
     });
     return () => unsubscribe();
   }, []);
-    useEffect(() => {
-        const tripsRef = collection(firebaseFirestore, "trips");
-        const q = query(tripsRef);
+   useEffect(() => {
+    const tripsRef = collection(firebaseFirestore, "trips");
+    const q = query(tripsRef);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const trips = snapshot.docs.map((doc) => {
-                const data = doc.data();
-                return {
-                    tripCode: data.tripCode ?? "",
-                    plateNumber: data.vehicleAssigned ?? "",
-                    dateTime: data.dateTime ?? "",
-                    status: data.status ?? "",
-                };
-            });
-
-            const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); 
-    const availabilityList = Object.entries(vehicleTypes).map(([plate, vehicle]) => {
-     
-      const assignedTrip = trips.find((trip) => {
-        if (!trip.plateNumber || trip.status === "Fulfilled") return false;
-
-        const tripDate = new Date(trip.dateTime);
-        return (
-          trip.plateNumber === plate &&
-          tripDate.getFullYear() === currentYear &&
-          tripDate.getMonth() === currentMonth
-        );
+    const unsubscribe = onSnapshot(q, snapshot => {
+      const trips = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          tripCode: data.tripCode ?? "",
+          plateNumber: data.vehicleAssigned ?? "",
+          dateTime: data.dateTime ?? "",
+          status: data.status ?? "",
+        };
       });
 
-                return {
-                    plateNumber: plate,
-                    description: vehicle.description,
-                    status: assignedTrip
-                        ? `Assigned (${assignedTrip.tripCode})`
-                        : "Available",
-                };
-            });
+      const todayStr = new Date().toISOString().slice(0, 10);   // ← Araw lang
 
-            setAvailability(availabilityList);
-            setLoadingVehicles(false);
-        });
+      const availabilityList = Object.entries(vehicleTypes).map(([plate, vehicle]) => {
+        const assignedTrip = trips.find(
+          trip =>
+            trip.plateNumber === plate &&
+            trip.dateTime?.slice(0, 10) === todayStr &&
+            trip.status !== "Fulfilled"
+        );
 
-        return () => unsubscribe();
-    }, []);
+        return {
+          plateNumber: plate,
+          description: vehicle.description,
+          status: assignedTrip ? `Assigned (${assignedTrip.tripCode})` : "Available",
+        };
+      });
+
+      setAvailability(availabilityList);
+      setLoadingVehicles(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
           useEffect(() => {
           const q = query(
@@ -285,61 +279,89 @@ export default function Home({ darkMode }: HomeProps) {
 
         {/* ICON CARDS */}
        
-<div className="bg-slate-100 min-h-screen w-full flex gap-4 p-4">
+<div className="bg-slate-100 min-h-full w-full flex gap-4 p-4">
 
   {/* LEFT CARDS */}
   <div className="w-[20%] flex flex-col gap-4">
 
-    {/* Request Form */}
-    <HomeCard href="/request-form">
-      <div className="group bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-            <FileTextIcon className="w-8 h-8 text-blue-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800 group-hover:text-blue-700">
-            Request Form
-          </h2>
-          <p className="text-slate-600 group-hover:text-slate-700">
-            Create a new vehicle service request
-          </p>
-        </div>
-      </div>
-    </HomeCard>
+    <HomeCard 
+      href="/request-form"
+      title="Request Form"
+      icon={<FileTextIcon className="w-8 h-8 text-blue-600" />}
+      description="Create a new vehicle service request"
+    />
 
-    {/* Requests */}
-    <HomeCard href="/requests">
-      <div className="group bg-white hover:bg-slate-50 border border-slate-200 hover:border-amber-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-            <ClipboardClockIcon className="w-8 h-8 text-amber-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800 group-hover:text-amber-700">
-            Requests
-          </h2>
-          <p className="text-slate-600 group-hover:text-slate-700">
-            View and manage your service requests
-          </p>
-        </div>
-      </div>
-    </HomeCard>
+    <HomeCard 
+      href="/requests"
+      title="Requests"
+      icon={<ClipboardClockIcon className="w-8 h-8 text-amber-600" />}
+      description="View and manage your service requests"
+    />
 
-    {/* Approved Trips */}
-    <HomeCard href="/trips">
-      <div className="group bg-white hover:bg-slate-50 border border-slate-200 hover:border-green-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center group-hover:bg-green-200 transition-colors">
-            <MapPinCheckIcon className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800 group-hover:text-green-700">
-            Approved Trips
-          </h2>
-          <p className="text-slate-600 group-hover:text-slate-700">
-            Track your approved vehicle trips
-          </p>
+    <HomeCard 
+      href="/trips"
+      title="Approved Trips"
+      icon={<MapPinCheckIcon className="w-8 h-8 text-green-600" />}
+      description="Track your approved vehicle trips"
+    />
+
+    
+    {/* Maintenance */}
+   {["admin", "mechanic", "driver"].includes(role) ? (
+  <div className="relative">
+    <div 
+      onClick={() => setShowMaintenance(!showMaintenance)}
+      className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-teal-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
+    >
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200 transition-colors">
+          <ClipboardIcon className="w-8 h-8 text-teal-600" />
         </div>
+        <h2 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700">
+          Maintenance Checklist
+        </h2>
+        <p className="text-slate-600 group-hover:text-slate-700">
+          Track and Manage Vehicle Maintenance Tasks
+        </p>
       </div>
-    </HomeCard>
+    </div>
+
+    {/* Dropdown */}
+    {showMaintenance && (
+      <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+        <Link href="/maintenance/automotive">
+          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
+            <CarIcon className="w-6 h-6 text-teal-600"/>
+            <span className="text-teal-700 font-medium">Automotive</span>
+          </div>
+        </Link>
+        <Link href="/maintenance/motorcycle">
+          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
+            <BikeIcon className="w-6 h-6 text-teal-600"/>
+            <span className="text-teal-700 font-medium">Motorcycle/Trimobile</span>
+          </div>
+        </Link>
+      </div>
+    )}
+  </div>
+) : (
+  /* Disabled version for other users */
+  <div className="group cursor-not-allowed opacity-60">
+    <div className="bg-white border border-slate-200 p-8 rounded-xl shadow-sm">
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
+          <ClipboardIcon className="w-8 h-8 text-teal-400" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-800">
+          Maintenance Checklist
+        </h2>
+        <p className="text-slate-500">
+          Only for Admin, Mechanic & Driver
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
   </div>
 
@@ -403,80 +425,13 @@ export default function Home({ darkMode }: HomeProps) {
 
   {/* RIGHT CARDS */}
   <div className="w-[20%] flex flex-col gap-4">
-
-    {/* Maintenance */}
-   {["admin", "mechanic", "driver"].includes(role) ? (
-  <div className="relative">
-    <div 
-      onClick={() => setShowMaintenance(!showMaintenance)}
-      className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-teal-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
-    >
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200 transition-colors">
-          <ClipboardIcon className="w-8 h-8 text-teal-600" />
-        </div>
-        <h2 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700">
-          Maintenance Checklist
-        </h2>
-        <p className="text-slate-600 group-hover:text-slate-700">
-          Track and Manage Vehicle Maintenance Tasks
-        </p>
-      </div>
-    </div>
-
-    {/* Dropdown */}
-    {showMaintenance && (
-      <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg p-4 flex flex-col space-y-2 z-50">
-        <Link href="/maintenance/automotive">
-          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
-            <CarIcon className="w-6 h-6 text-teal-600"/>
-            <span className="text-teal-700 font-medium">Automotive</span>
-          </div>
-        </Link>
-        <Link href="/maintenance/motorcycle">
-          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
-            <BikeIcon className="w-6 h-6 text-teal-600"/>
-            <span className="text-teal-700 font-medium">Motorcycle/Trimobile</span>
-          </div>
-        </Link>
-      </div>
-    )}
-  </div>
-) : (
-  /* Disabled version for other users */
-  <div className="group cursor-not-allowed opacity-60">
-    <div className="bg-white border border-slate-200 p-8 rounded-xl shadow-sm">
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
-          <ClipboardIcon className="w-8 h-8 text-teal-400" />
-        </div>
-        <h2 className="text-xl font-semibold text-slate-800">
-          Maintenance Checklist
-        </h2>
-        <p className="text-slate-500">
-          Only for Admin, Mechanic & Driver
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-    {/* Analytics */}
-    <HomeCard href="/analytics">
-      <div className="group bg-white hover:bg-slate-50 border border-slate-200 hover:border-purple-300 p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-            <ChartColumnIcon className="w-8 h-8 text-purple-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800 group-hover:text-purple-700">
-            Data & Analytics
-          </h2>
-          <p className="text-slate-600 group-hover:text-slate-700">
-            Analyze vehicle usage data
-          </p>
-        </div>
-      </div>
-    </HomeCard>
+        {/* Analytics */}
+    <HomeCard 
+      href="/analytics"
+      title="Data & Analytics"
+      icon={<ChartColumnIcon className="w-8 h-8 text-purple-600" />}
+      description="Analyze vehicle usage data"
+    />
 
     {/* Management (Disabled) */}
     <div className="group cursor-not-allowed opacity-60">
@@ -495,21 +450,93 @@ export default function Home({ darkMode }: HomeProps) {
       </div>
     </div>
 
-    {/* Reports (Disabled) */}
-    <div className="group cursor-not-allowed opacity-60">
-      <div className="bg-white border border-slate-200 p-8 rounded-xl shadow-sm">
-        <div className="flex flex-col items-center text-center space-y-4">
+    {/* Reports*/}
+    {role === "admin" && (
+      <div className="relative">
+        <div
+          onClick={() => setShowReports(!showReports)}
+          className="cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition"
+        >
+        <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
             <FileBarChartIcon className="w-8 h-8 text-indigo-600" />
           </div>
-          <h2 className="text-xl font-semibold text-slate-800">
-            Reports
+          <h2 className="text-lg font-semibold text-slate-800">Reports</h2>
+          <p className="text-slate-600">Generate service reports</p>
+        </div>
+      </div>
+      {showReports && (
+        <div
+         className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Link href="/fuel-reports">
+            <div onClick={() => setShowReports(false)}>
+              <DropdownItem
+                icon={<DropletIcon className="w-6 h-6 text-indigo-600" />}
+                label="Fuel Reports"
+              />
+            </div>
+          </Link>
+          <Link href="/maintenance-reports">
+            <div onClick={() => setShowReports(false)}>
+              <DropdownItem
+                icon={<WrenchIcon className="w-6 h-6 text-indigo-600" />}
+                label="Maintenance Reports"
+              />
+            </div>
+          </Link>
+          <Link href="/borrow-report">
+            <div onClick={() => setShowReports(false)}>
+              <DropdownItem
+                icon={<ClipboardClockIcon className="w-6 h-6 text-indigo-600" />}
+                label="Borrow Reports"
+              />
+            </div>
+          </Link>
+        </div>
+      )}
+    </div>
+    )}
+    <div className="relative">
+      <div
+        onClick={() => setShowEquipment(!showEquipment)}
+        className="cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition"
+      >
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+            <WrenchIcon className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-800">
+            Equipment Borrow
           </h2>
           <p className="text-slate-600">
-            Generate detailed service reports
+            Borrow and manage equipment requests
           </p>
         </div>
       </div>
+      {showEquipment && (
+        <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+          <Link href="/borrow-form">
+            <DropdownItem
+              icon={<FileTextIcon className="w-6 h-6 text-red-600" />}
+              label="Borrow Form"
+            />
+          </Link>
+          <Link href="/borrow-requests">
+            <DropdownItem
+              icon={<ClipboardClockIcon className="w-6 h-6 text-red-600" />}
+              label="Borrow Request"
+            />
+          </Link>
+          <Link href="/borrow-checklist">
+            <DropdownItem
+              icon={<ClipboardIcon className="w-6 h-6 text-red-600" />}
+              label="Checklist"
+            />
+          </Link>
+        </div>
+      )}
     </div>
 
   </div>
@@ -519,15 +546,28 @@ export default function Home({ darkMode }: HomeProps) {
     )
 }
 
-interface HomeCardProps {
-    children?: ReactNode
-    href: string
+function HomeCard({ href, title, icon, description }: { 
+  href: string; 
+  title: string; 
+  icon: ReactNode; 
+  description: string 
+}) {
+  return (
+    <Link href={href}>
+      <div className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm hover:shadow-md transition flex flex-col items-center text-center space-y-3">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">{icon}</div>
+        <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+        <p className="text-slate-600">{description}</p>
+      </div>
+    </Link>
+  );
 }
 
-function HomeCard({ children, href }: HomeCardProps) {
-    return (
-        <Link href={href}>
-            {children}
-        </Link>
-    )
+function DropdownItem({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+      {icon}
+      <span className="text-slate-700 font-medium">{label}</span>
+    </div>
+  );
 }
