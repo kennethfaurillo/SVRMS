@@ -31,28 +31,14 @@ const sidebarItems: SidebarItem[] = [
     ],
     allowedRoles: ["admin", "mechanic", "driver"]
   },
- {
-    label: "Equipment Borrow",
-    path: "/borrow-form",                    
-    icon: <FileTextIcon stroke="white" size={20} />,
-    subItems: [
-      { 
-        label: "Borrow Form", 
-        path: "/borrow-form",                
-        icon: <FileTextIcon stroke="white" size={16} /> 
-      },
-      { 
-        label: "Borrow Requests", 
-        path: "/borrow-requests",            
-        icon: <ClipboardClockIcon stroke="white" size={16} /> 
-      },
-      { 
-  label: "Checklist", 
-  path: "/borrow-checklist", 
-  icon: <ClipboardIcon stroke="white" size={16} /> 
+  { label: "Equipment Borrow Form", path: "/borrow-form", icon: <FileTextIcon stroke="white" size={20} /> },
+  { label: "Equipment Borrow Requests", path: "/borrow-requests", icon: <ClipboardClockIcon stroke="white" size={20} /> },
+  {
+  label: "Approved Equipment",
+  path: "/equipment",
+  icon: <WrenchIcon stroke="white" size={20} />
 },
-    ],
-  },
+  { label: "Checklist", path: "/borrow-checklist", icon: <ClipboardIcon stroke="white" size={20} /> },
   { label: "Analytics", path: "/analytics", icon: <ChartColumnIcon stroke="white" size={20} /> },
     { label: "Management", path: "/management", icon: <UsersIcon stroke="white" size={20} /> },
 

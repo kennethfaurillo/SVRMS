@@ -190,8 +190,8 @@ export default function BorrowersForm() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-8 text-sm">
-      <div className="max-w-4xl mx-auto border p-8 rounded-lg shadow-sm bg-white">
+    <div className="min-h-screen bg-white p-8 text-sm text-gray-900 dark:bg-white dark:text-gray-900">
+     <div className="max-w-4xl mx-auto border p-8 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-white dark:text-gray-900 dark:border-gray-300">
 
         <h1 className="text-center font-bold text-2xl mb-8 text-gray-800">
           EQUIPMENT / MATERIAL BORROWERS REQUEST FORM
@@ -200,7 +200,7 @@ export default function BorrowersForm() {
         {/* Header Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Request No</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Request No</label>
             <input 
               className="border w-full p-3 bg-gray-100 font-semibold text-lg rounded" 
               value={requestNo}
@@ -209,7 +209,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Request Date</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Request Date</label>
             <input 
               type="date" 
               className="border w-full p-3 rounded"
@@ -219,7 +219,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Name of Requestor</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Name of Requestor</label>
             <input 
               className="border w-full p-3 rounded"
               value={requestor}
@@ -229,7 +229,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Purpose</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Purpose</label>
             <input 
               className="border w-full p-3 rounded"
               value={purpose}
@@ -239,7 +239,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Start Date (Hihiram)</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Start Date (Hihiram)</label>
             <input 
               type="date" 
               className="border w-full p-3 rounded"
@@ -249,7 +249,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Return Date (Ibabalik)</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Return Date (Ibabalik)</label>
             <input 
               type="date" 
               className="border w-full p-3 rounded"
@@ -263,7 +263,7 @@ export default function BorrowersForm() {
         <div className="mb-10">
           <h2 className="font-bold text-lg mb-4">Add Item</h2>
 
-          <div className="border rounded-lg p-6 bg-gray-50">
+          <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-50 dark:border-gray-300">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-5">
                 <label className="text-xs font-medium mb-1 block">Name of Item</label>
@@ -301,14 +301,24 @@ export default function BorrowersForm() {
               </div>
             </div>
 
-            {/* OK Button - nasa ibaba na */}
+            {/* OK Button*/}
             <div className="flex justify-end mt-6">
-              <button 
-                onClick={addItemToList}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
-              >
-                OK
-              </button>
+         <button
+            onClick={addItemToList}
+            className={`
+              mt-2 flex items-center justify-center
+              px-6 py-3 text-sm font-medium rounded-lg border
+              transition-all duration-300 transform
+
+              bg-blue-600 border-gray-200 text-white hover:bg-blue-50
+              dark:bg-gray-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-600
+
+              hover:-translate-y-1 hover:scale-[1.02] hover:shadow-md
+              active:scale-95 cursor-pointer
+            `}
+          >
+            OK
+          </button>
             </div>
           </div>
         </div>
@@ -326,7 +336,7 @@ export default function BorrowersForm() {
           {addedItems.map((item, index) => (
             <div 
               key={index} 
-              className="flex justify-between items-center border p-4 mb-3 rounded-lg bg-white hover:bg-gray-50"
+              className="flex justify-between items-center border p-4 mb-3 rounded-lg bg-white hover:bg-gray-50 dark:bg-white dark:hover:bg-gray-100 dark:border-gray-300"
             >
               <div className="flex-1">
                 <p className="font-medium text-gray-800">{item.particulars}</p>

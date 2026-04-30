@@ -118,6 +118,9 @@ export default function Maintenance({
   const driverSigRef = useRef<SignatureCanvas>(null);
 const mechanicSigRef = useRef<SignatureCanvas>(null);
 
+const primaryButton =
+  "cursor-pointer px-4 py-2 rounded text-white font-medium transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md";
+
   const handleStatusChange = (id: number, status: "Good" | "Defective") => {
     setItems(prev =>
       prev.map(item => (item.id === id ? { ...item, status } : item))
@@ -311,7 +314,7 @@ const clearAll = () => {
               <span className="font-medium">Good</span>
               <button
                 onClick={selectAllGood}
-                className="text-xs px-4 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium"
+                className={`${primaryButton} bg-blue-600 hover:bg-blue-700 w-full md:w-auto`}
               >
                 Select all
               </button>
@@ -322,7 +325,7 @@ const clearAll = () => {
               <span className="font-medium">Defective</span>
               <button
                 onClick={selectAllDefective}
-                className="text-xs px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-medium"
+                className={`${primaryButton} bg-red-600 hover:bg-red-700 w-full md:w-auto`}
               >
                 Select all
               </button>
@@ -331,7 +334,7 @@ const clearAll = () => {
           <th className="border px-3 py-3 text-center w-28">
             <button
               onClick={clearAll}
-              className="text-xs px-5 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded font-medium"
+              className={`${primaryButton} bg-gray-500 hover:bg-gray-600 w-full md:w-auto`}
             >
               Clear all
             </button>
@@ -413,11 +416,22 @@ const clearAll = () => {
         />
       </div>
 
-      <div className="p-4 bg-yellow-100 border-l-4 border-yellow-500 mb-6">
-        <strong>IMPORTANT REMINDER:</strong>{" "}
-        {category === "Automotive"
-          ? "Clean all Door Handles, Steering Wheel, Gear Shift Lever, Dashboard and Flooring."
-          : "Cleanliness of Service Motorcycle and Trimobile."}
+      <div
+        className={`p-4 mb-6 border-l-4 rounded transition-colors duration-200
+          ${
+            darkMode
+              ? "bg-yellow-500/10 border-yellow-400 text-yellow-100"
+              : "bg-yellow-100 border-yellow-500 text-yellow-900"
+          }
+        `}
+      >
+        <strong className="block mb-1">IMPORTANT REMINDER:</strong>
+
+        <span>
+          {category === "Automotive"
+            ? "Clean all Door Handles, Steering Wheel, Gear Shift Lever, Dashboard and Flooring."
+            : "Cleanliness of Service Motorcycle and Trimobile."}
+        </span>
       </div>
 
       {/* Signatures Section */}
@@ -439,7 +453,7 @@ const clearAll = () => {
           <button
             type="button"
             onClick={() => driverSigRef.current?.clear()}
-            className="text-xs text-red-500 mt-1"
+           className={`${primaryButton} bg-blue-600 hover:bg-blue-700 w-full md:w-auto`}
           >
             Clear Signature
           </button>
@@ -462,7 +476,7 @@ const clearAll = () => {
           <button
             type="button"
             onClick={() => mechanicSigRef.current?.clear()}
-            className="text-xs text-red-500 mt-1"
+            className={`${primaryButton} bg-blue-600 hover:bg-blue-700 w-full md:w-auto`}
           >
             Clear Signature
           </button>
@@ -474,7 +488,7 @@ const clearAll = () => {
         type="button"
         onClick={handleSubmit}
         disabled={isSubmitting}
-        className={`px-6 py-3 rounded text-white font-medium w-full md:w-auto ${isSubmitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+        className={`${primaryButton} bg-blue-600 hover:bg-blue-700 w-full md:w-auto`}
       >
         {isSubmitting ? "Submitting..." : "Submit Checklist"}
       </button>

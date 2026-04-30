@@ -219,41 +219,53 @@ export default function Home({ darkMode }: HomeProps) {
           alert("Failed to post bulletin. Check console for details.");
         }
       }}
-      className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+      className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 shadow-sm hover:shadow-md"
     >
       Post Bulletin
     </button>
   </div>
 )}
-      {/* BULLETIN LIST */}
-      <ul className="space-y-4">
-          {bulletinsData.map(b => (
-          <li key={b.id} className="flex flex-col text-slate-800">
+     {/* BULLETIN BOARD STYLE */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  {bulletinsData.map(b => (
+    <div
+      key={b.id}
+      className="relative bg-yellow-50 border border-yellow-200 rounded-xl shadow-md p-4 h-fit hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+    >
+      {/* Pin effect */}
+      <div className="absolute -top-2 left-4 w-3 h-3 bg-red-500 rounded-full shadow"></div>
 
-            <div className="flex items-center gap-2 font-medium">
-             {b.title?.includes("Maintenance") && <CarIcon className="w-5 h-5 text-blue-600"/>}
-              {b.title?.includes("Guidelines") && <ClipboardIcon className="w-5 h-5 text-teal-600"/>}
-              {b.title?.includes("Update") && <FileTextIcon className="w-5 h-5 text-amber-600"/>}
-              <span className="text-sm">{b.title}</span>
-            </div>
+      {/* Title */}
+      <div className="flex items-center gap-2 font-semibold text-slate-800 mb-2">
+        {b.title?.includes("Maintenance") && <CarIcon className="w-5 h-5 text-blue-600" />}
+        {b.title?.includes("Guidelines") && <ClipboardIcon className="w-5 h-5 text-teal-600" />}
+        {b.title?.includes("Update") && <FileTextIcon className="w-5 h-5 text-amber-600" />}
+        <span className="text-sm">{b.title}</span>
+      </div>
 
-            <p className="text-slate-600 text-xs ml-7 mt-1">
-              {b.description}
-            </p>
+      {/* Description */}
+      <p className="text-slate-700 text-xs whitespace-pre-wrap break-words">
+        {b.description}
+      </p>
 
-            
-           {isAdmin && bulletinsData.length > 0 && (
-            <button
-              onClick={() => deleteBulletin(b.id)}
-              className="text-red-500 text-xs ml-7 mt-1"
-            >
-              Delete
-            </button>
-          )}
+      {/* Footer actions */}
+      <div className="flex justify-between items-center mt-3">
+        <span className="text-[10px] text-slate-400">
+          📌 Bulletin
+        </span>
 
-          </li>
-        ))}
-      </ul>
+        {isAdmin && (
+          <button
+            onClick={() => deleteBulletin(b.id)}
+            className="text-red-500 text-xs hover:underline"
+          >
+            Delete
+          </button>
+        )}
+      </div>
+    </div>
+  ))}
+</div>
 
   {/* Status Cards Grid */}
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
@@ -367,7 +379,11 @@ export default function Home({ darkMode }: HomeProps) {
 
   {/* CENTER CARD */}
   <div className="w-[60%]">
-  <div className="w-full col-span-1 sm:col-span-2 lg:col-span-3 bg-white p-6 rounded-xl shadow flex flex-col items-center">
+  <div className={`flex flex-col items-center p-2 rounded-lg shadow transition-colors duration-300 ${
+  darkMode
+    ? "bg-gray-800 border border-gray-700"
+    : "bg-gray-50 border border-gray-200"
+}`}>
     <h2 className="text-xl font-bold mb-4 text-center">Vehicle Availability</h2>
     {loadingVehicles ? (
       <p>Loading...</p>
@@ -401,24 +417,30 @@ export default function Home({ darkMode }: HomeProps) {
         <div className="w-14 h-14 bg-slate-200 rounded-full flex items-center justify-center font-bold">
           {v.description.slice(0, 2)}
         </div>
-        <p className="text-xs font-semibold mt-1 text-center">{v.description}</p>
-        <p className={`text-xs font-medium ${statusColor}`}>
-          {finalStatus}
-        </p>
+        <p className={`text-xs font-semibold mt-1 text-center ${
+            darkMode ? "text-gray-200" : "text-slate-800"
+          }`}>
+            {v.description}
+          </p>
+                  <p className={`text-xs font-medium ${statusColor} ${
+            darkMode ? "drop-shadow-sm" : ""
+          }`}>
+            {finalStatus}
+          </p>
       </div>
     );
   })}
 </div>
     )}
     <Link href={anyAvailable ? "/request-form" : "#"} className="w-full mt-4">
-          <button
-      className={`w-full py-3 rounded text-white font-semibold cursor-pointer ${
-        anyAvailable ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400 cursor-not-allowed"
-      }`}
-      disabled={!anyAvailable}
-    >
-      Proceed to Request Form
-    </button>
+         <button
+          className={`w-full py-3 rounded text-white font-semibold transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md ${
+            anyAvailable ? "bg-blue-500 hover:bg-blue-600 cursor-pointer" : "bg-gray-400 cursor-not-allowed"
+          }`}
+          disabled={!anyAvailable}
+        >
+          Proceed to Request Form
+        </button>
     </Link>
   </div>
 </div>
@@ -451,93 +473,102 @@ export default function Home({ darkMode }: HomeProps) {
     </div>
 
     {/* Reports*/}
-    {role === "admin" && (
-      <div className="relative">
-        <div
-          onClick={() => setShowReports(!showReports)}
-          className="cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition"
-        >
-        <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
-            <FileBarChartIcon className="w-8 h-8 text-indigo-600" />
-          </div>
-          <h2 className="text-lg font-semibold text-slate-800">Reports</h2>
-          <p className="text-slate-600">Generate service reports</p>
+   {role === "admin" && (
+  <div className="relative">
+    
+    {/* MAIN CARD */}
+    <div
+      onClick={() => setShowReports(!showReports)}
+      className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-300 p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
+    >
+      <div className="flex flex-col items-center text-center space-y-3">
+        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+          <FileBarChartIcon className="w-8 h-8 text-indigo-600" />
         </div>
+        <h2 className="text-lg font-semibold text-slate-800 group-hover:text-indigo-700">
+          Reports
+        </h2>
+        <p className="text-slate-600">Generate service reports</p>
       </div>
-      {showReports && (
-        <div
-         className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Link href="/fuel-reports">
-            <div onClick={() => setShowReports(false)}>
-              <DropdownItem
-                icon={<DropletIcon className="w-6 h-6 text-indigo-600" />}
-                label="Fuel Reports"
-              />
-            </div>
-          </Link>
-          <Link href="/maintenance-reports">
-            <div onClick={() => setShowReports(false)}>
-              <DropdownItem
-                icon={<WrenchIcon className="w-6 h-6 text-indigo-600" />}
-                label="Maintenance Reports"
-              />
-            </div>
-          </Link>
-          <Link href="/borrow-report">
-            <div onClick={() => setShowReports(false)}>
-              <DropdownItem
-                icon={<ClipboardClockIcon className="w-6 h-6 text-indigo-600" />}
-                label="Borrow Reports"
-              />
-            </div>
-          </Link>
-        </div>
-      )}
     </div>
+
+    {/* DROPDOWN */}
+    {showReports && (
+      <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+
+        <Link href="/fuel-reports">
+          <div onClick={() => setShowReports(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <DropletIcon className="w-6 h-6 text-indigo-600" />
+            <span className="text-slate-700 font-medium">Fuel Reports</span>
+          </div>
+        </Link>
+
+        <Link href="/maintenance-reports">
+          <div onClick={() => setShowReports(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <WrenchIcon className="w-6 h-6 text-indigo-600" />
+            <span className="text-slate-700 font-medium">Maintenance Reports</span>
+          </div>
+        </Link>
+
+        <Link href="/borrow-report">
+          <div onClick={() => setShowReports(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <ClipboardClockIcon className="w-6 h-6 text-indigo-600" />
+            <span className="text-slate-700 font-medium">Borrow Reports</span>
+          </div>
+        </Link>
+
+      </div>
     )}
+  </div>
+)}
     <div className="relative">
-      <div
-        onClick={() => setShowEquipment(!showEquipment)}
-        className="cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition"
-      >
-        <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-            <WrenchIcon className="w-8 h-8 text-red-600" />
-          </div>
-          <h2 className="text-lg font-semibold text-slate-800">
-            Equipment Borrow
-          </h2>
-          <p className="text-slate-600">
-            Borrow and manage equipment requests
-          </p>
-        </div>
+
+  {/* MAIN CARD */}
+  <div
+    onClick={() => setShowEquipment(!showEquipment)}
+    className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-red-300 p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
+  >
+    <div className="flex flex-col items-center text-center space-y-3">
+      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center group-hover:bg-red-200 transition-colors">
+        <WrenchIcon className="w-8 h-8 text-red-600" />
       </div>
-      {showEquipment && (
-        <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
-          <Link href="/borrow-form">
-            <DropdownItem
-              icon={<FileTextIcon className="w-6 h-6 text-red-600" />}
-              label="Borrow Form"
-            />
-          </Link>
-          <Link href="/borrow-requests">
-            <DropdownItem
-              icon={<ClipboardClockIcon className="w-6 h-6 text-red-600" />}
-              label="Borrow Request"
-            />
-          </Link>
-          <Link href="/borrow-checklist">
-            <DropdownItem
-              icon={<ClipboardIcon className="w-6 h-6 text-red-600" />}
-              label="Checklist"
-            />
-          </Link>
-        </div>
-      )}
+      <h2 className="text-lg font-semibold text-slate-800">
+        Equipment Borrow
+      </h2>
+      <p className="text-slate-600">
+        Borrow and manage equipment requests
+      </p>
     </div>
+  </div>
+
+  {/* DROPDOWN */}
+  {showEquipment && (
+    <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+
+      <Link href="/borrow-form">
+        <div onClick={() => setShowEquipment(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <FileTextIcon className="w-6 h-6 text-red-600" />
+          <span className="text-slate-700 font-medium">Borrow Form</span>
+        </div>
+      </Link>
+
+      <Link href="/borrow-requests">
+        <div onClick={() => setShowEquipment(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <ClipboardClockIcon className="w-6 h-6 text-red-600" />
+          <span className="text-slate-700 font-medium">Borrow Request</span>
+        </div>
+      </Link>
+
+      <Link href="/borrow-checklist">
+        <div onClick={() => setShowEquipment(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <ClipboardIcon className="w-6 h-6 text-red-600" />
+          <span className="text-slate-700 font-medium">Checklist</span>
+        </div>
+      </Link>
+
+    </div>
+  )}
+</div>
 
   </div>
 </div>
@@ -554,20 +585,21 @@ function HomeCard({ href, title, icon, description }: {
 }) {
   return (
     <Link href={href}>
-      <div className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm hover:shadow-md transition flex flex-col items-center text-center space-y-3">
-        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">{icon}</div>
-        <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
-        <p className="text-slate-600">{description}</p>
+      <div className="group cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-300 p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105 flex flex-col items-center text-center space-y-4">
+        
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+          {icon}
+        </div>
+
+        <h2 className="text-lg font-semibold text-slate-800 group-hover:text-blue-700">
+          {title}
+        </h2>
+
+        <p className="text-slate-600 group-hover:text-slate-700">
+          {description}
+        </p>
+
       </div>
     </Link>
-  );
-}
-
-function DropdownItem({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
-      {icon}
-      <span className="text-slate-700 font-medium">{label}</span>
-    </div>
   );
 }

@@ -7,10 +7,61 @@ import type { BorrowRequest, Item } from "../types";
 import { exportBorrowRequestsToCsv } from "../utils";
 import PrintBorrowersForm from "./PrintBorrowersForm";
 import GatePass from "./GatePass";   // ← Siguraduhing may file ito
+import EquipApproveModal from "./EquipApproveModal";
 
 interface BorrowRequestsTableProps {
     darkMode: boolean;
 }
+
+const EQUIPMENT_OPTIONS = [
+  "Air Compressor",
+  "Atlas Copco-Jack Hammer (Hydraulic)",
+  "Atlas Copco-Jack Hammer (Pneumatic)",
+  "Airman Pneumatic - Jack Hammer (Toku TPB-90)",
+  "Concrete Cutter 1",
+  "Concrete Cutter 2",
+  "Concrete Cutter 3",
+  "Grass Cutter 1",
+  "Grass Cutter 2",
+  "Grass Cutter 3",
+  "Grass Cutter 4",
+  "Jack Hammer Hilti 1",
+  "Jack Hammer Hilti 2",
+  "Jack Hammer Hilti 3",
+  "Mobile Gen-set 10KVA",
+  "Welding Generator",
+  "Pipe Threader",
+  "Power Spray",
+  "Stanley-Jackhammer/1 Dewatering",
+  "Stanley-Jackhammer/2 Dewatering",
+  "Dewatering New",
+  "Dewatering Old",
+  "Tampering Machine 1",
+  "Tampering Machine 2",
+  "Butt Fusion Machine",
+  "Cement Mixer 1",
+  "Cement Mixer 2",
+  "Chainsaw",
+  "Fusion Machine",
+  "Grease Pump",
+  "GS #1: San Vicente",
+  "GS #4: San Jose",
+  "GS #5: La Purisima I",
+  "GS #6: San Jose",
+  "GS #7: PIWAD Office",
+  "GS #8: San Vicente",
+  "GS #9 C. Park",
+  "GS #10 Del Rosario",
+  "GS #11 Cadlan",
+  "GS #12 La Purisima II",
+  "GS #13 Caroyroyan",
+  "GS #14 Palestina",
+  "GS #15 Del Rosario",
+  "GS #16 La Purisima II",
+  "GS #17 Palestina",
+  "GS #18 C. Park",
+  "Others"
+];
 
 export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTableProps) {
     const db = firebaseFirestore;
@@ -24,10 +75,21 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
     const [printId, setPrintId] = useState<string | null>(null);
     const [selectedGatePass, setSelectedGatePass] = useState<BorrowRequest | null>(null);
 
+    const [showApproveModal, setShowApproveModal] = useState(false);
+const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(null);
     // Filter & Pagination
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 100;
+
+    const pastelColors = [
+    { bg: 'bg-blue-50', darkBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-700' },
+    { bg: 'bg-green-50', darkBg: 'bg-green-900/20', border: 'border-green-200', darkBorder: 'border-green-700' },
+    { bg: 'bg-purple-50', darkBg: 'bg-purple-900/20', border: 'border-purple-200', darkBorder: 'border-purple-700' },
+    { bg: 'bg-yellow-50', darkBg: 'bg-yellow-900/20', border: 'border-yellow-200', darkBorder: 'border-yellow-700' },
+    { bg: 'bg-pink-50', darkBg: 'bg-pink-900/20', border: 'border-pink-200', darkBorder: 'border-pink-700' },
+    { bg: 'bg-indigo-50', darkBg: 'bg-indigo-900/20', border: 'border-indigo-200', darkBorder: 'border-indigo-700' }
+];
 
     useEffect(() => {
         setCurrentPage(1);
@@ -118,15 +180,12 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
     const combineRemarks = (items: Item[] = []) => items.map(item => item.remarks?.trim() || "—").join("\n") || "—";
 
     // ==================== ACTION HANDLERS ====================
-    const updateRequestStatus = async (requestId: string, newStatus: 'Approved' | 'Returned') => {
+    const updateRequestStatus = async (requestId: string, newStatus: 'Approved'  | 'Cancelled' | 'Rescheduled') => {
         if (!requestId) return;
         setUpdatingRequestId(requestId);
 
         try {
             const updateData: Record<string, any> = { status: newStatus };
-            if (newStatus === 'Returned') {
-                updateData.returnedAt = Timestamp.now();
-            }
             await updateDoc(doc(db, 'borrowRequests', requestId), updateData);
         } catch (error) {
             console.error("Error updating status:", error);
@@ -136,17 +195,12 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
         }
     };
 
-    const handleApprove = (request: BorrowRequest) => {
-        if (!request.id || request.status === 'Approved') return;
-        if (!confirm(`Approve borrow request #${request.requestNo || request.id}?`)) return;
-        updateRequestStatus(request.id, 'Approved');
-    };
+   const handleApproveClick = (request: BorrowRequest) => {
+    if (!request.id || request.status === 'Approved') return;
 
-    const handleReturn = (request: BorrowRequest) => {
-        if (!request.id || request.status === 'Returned') return;
-        if (!confirm(`Mark request #${request.requestNo || request.id} as RETURNED?`)) return;
-        updateRequestStatus(request.id, 'Returned');
-    };
+    setSelectedRequest(request);
+    setShowApproveModal(true);
+};
 
     const handlePrintForm = (id: string) => setPrintId(id);
     const handlePrintGatePass = (request: BorrowRequest) => setSelectedGatePass(request);
@@ -181,13 +235,19 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
     if (!editingRequestId || !requestEditData) return;
 
     try {
-        await updateDoc(doc(db, "borrowRequests", editingRequestId), {
-            requestor: requestEditData.requestor,
-            purpose: requestEditData.purpose,
-            date: requestEditData.date,
-            period: requestEditData.period,
-            items: requestEditData.items,
-        });
+      await updateDoc(doc(db, "borrowRequests", editingRequestId), {
+    requestor: requestEditData.requestor ?? "",
+    purpose: requestEditData.purpose ?? "",
+    date: requestEditData.date ?? "",
+    period: requestEditData.period ?? "",
+    items: (requestEditData.items || []).map(item => ({
+        particulars: item.particulars ?? "",
+        quantity: item.quantity ?? "",
+        remarks: item.remarks ?? ""
+    })),
+    status: requestEditData.status ?? "Pending",
+    updatedAt: Timestamp.now(),
+});
 
         setEditingRequestId(null);
         setRequestEditData(null);
@@ -266,8 +326,17 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                 </tr>
                             </thead>
                             <tbody className={darkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
-                                {paginatedRequests.map((request: BorrowRequest) => (
-                                    <tr key={request.id} className={`border-b transition-colors ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-50'}`}>
+                               {paginatedRequests.map((request: BorrowRequest, index) => (
+                                   <tr
+                                    key={request.id}
+                                    className={`
+                                        ${darkMode ? pastelColors[index % pastelColors.length].darkBg : pastelColors[index % pastelColors.length].bg}
+                                        border-l-4
+                                        ${darkMode ? pastelColors[index % pastelColors.length].darkBorder : pastelColors[index % pastelColors.length].border}
+                                        transition-colors
+                                        ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-50'}
+                                    `}
+                                >
                                         <td className="px-4 py-4 border">
                                             <div className="font-medium">{request.requestNo || '—'}</div>
                                             <div className="text-xs text-gray-500 mt-1">{formatShortDate(request.date)}</div>
@@ -312,27 +381,52 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                 {editingRequestId===request.id ? (
                                                 <div className="space-y-2">
                                                 {requestEditData?.items?.map((item,index)=>(
-                                                <input
-                                                key={index}
-                                                type="text"
+                                                <select
                                                 value={item.particulars || ""}
-                                                onChange={(e)=>{
-                                                const updated=[...(requestEditData?.items||[])];
+                                                onChange={(e) => {
+                                                    const updated = [...(requestEditData?.items || [])];
 
-                                                updated[index]={
-                                                ...updated[index],
-                                                particulars:e.currentTarget.value
-                                                };
+                                                    updated[index] = {
+                                                    ...updated[index],
+                                                    particulars: e.currentTarget.value
+                                                    };
 
-                                                setRequestEditData({
-                                                ...requestEditData!,
-                                                items:updated
-                                                });
+                                                    setRequestEditData({
+                                                    ...requestEditData!,
+                                                    items: updated
+                                                    });
                                                 }}
                                                 className="border px-2 py-1 w-full text-xs"
-                                                />
+                                                >
+                                                <option value="">-- Select Item --</option>
+
+                                                {EQUIPMENT_OPTIONS.map((opt) => (
+                                                    <option key={opt} value={opt}>
+                                                    {opt}
+                                                    </option>
                                                 ))}
-                                                </div>
+                                                </select>
+                                                ))}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                    setRequestEditData(prev => {
+                                                        if (!prev) return null;
+
+                                                        return {
+                                                        ...prev,
+                                                        items: [
+                                                            ...(prev.items || []),
+                                                            { particulars: "", quantity: "", remarks: "" }
+                                                        ]
+                                                        };
+                                                    });
+                                                    }}
+                                                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded mt-2"
+                                                >
+                                                    + Add Item
+                                                </button>
+                                                                                                </div>
                                                 ):(
                                                 <div className="whitespace-pre-line">
                                                 {combineItems(request.items)}
@@ -402,15 +496,33 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                 )}
                                                 </td>
 
-                                        <td className="px-4 py-4 border">
-                                            <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
-                                                request.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                                request.status === 'Returned' ? 'bg-emerald-100 text-emerald-700' :
-                                                'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                                {request.status || 'Pending'}
-                                            </span>
-                                        </td>
+                                       <td className="px-4 py-4 border">
+                                                {editingRequestId === request.id ? (
+                                                    <select
+                                                    name="status"
+                                                    value={requestEditData?.status || "Pending"}
+                                                    onChange={handleBorrowEditChange}
+                                                    className="border px-2 py-1 w-full"
+                                                    >
+                                                   <option value="Pending">Pending</option>
+                                                  <option value="Approved">Approved</option>
+                                                  <option value="Cancelled">Cancelled</option>
+                                                  <option value="Rescheduled">Rescheduled</option>
+                                                    </select>
+                                                ) : (
+                                                   <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
+                                                        request.status === 'Approved'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : request.status === 'Cancelled'
+                                                        ? 'bg-red-100 text-red-700'
+                                                        : request.status === 'Rescheduled'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                    {request.status || 'Pending'}
+                                                    </span>
+                                                )}
+                                                </td>
 
                                         {isAdmin && (
                                             <td className="px-4 py-4 border">
@@ -419,7 +531,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         <>
                                                         <button
                                                         onClick={handleSaveEdit}
-                                                        className="bg-green-600 text-white px-3 py-1 rounded text-xs"
+                                                       className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                         Save
                                                         </button>
@@ -429,7 +541,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         setEditingRequestId(null);
                                                         setRequestEditData(null);
                                                         }}
-                                                        className="bg-gray-500 text-white px-3 py-1 rounded text-xs"
+                                                        className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                         Cancel
                                                         </button>
@@ -440,62 +552,36 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         setEditingRequestId(request.id!);
                                                         setRequestEditData(request);
                                                         }}
-                                                        className="bg-indigo-600 text-white px-3 py-1 rounded text-xs"
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
-                                                        Edit
+                                                        Update
                                                         </button>
                                                         )}
                                                     {/* APPROVE BUTTON */}
                                                     {(request.status === 'Pending' || !request.status) && (
                                                         <button
-                                                            onClick={() => handleApprove(request)}
+                                                           onClick={() => handleApproveClick(request)}
                                                             disabled={updatingRequestId === request.id}
-                                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-all"
+                                                           className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                             Approve
                                                         </button>
                                                     )}
 
-                                                    {/* GATE PASS - Katabi ng Approve/Return */}
+                                                    {/* GATE PASS*/}
                                                     {request.status === 'Approved' && (
                                                         <button
                                                             onClick={() => handlePrintGatePass(request)}
-                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                             Gate Pass
                                                         </button>
                                                     )}
-
-                                                    {/* RETURN / UNDO SECTION */}
-                                                    {(request.status === 'Approved' || request.status === 'Returned') && (
-                                                        <div className="flex gap-2">
-                                                            {request.status !== 'Returned' && (
-                                                                <button
-                                                                    onClick={() => handleReturn(request)}
-                                                                    disabled={updatingRequestId === request.id}
-                                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-medium"
-                                                                >
-                                                                    Return
-                                                                </button>
-                                                            )}
-
-                                                            {request.status === 'Returned' && (
-                                                                <button
-                                                                    onClick={() => updateRequestStatus(request.id!, 'Approved')}
-                                                                    disabled={updatingRequestId === request.id}
-                                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium"
-                                                                >
-                                                                    Undo Return
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-
                                                     {/* Print Form + Delete - Sa ibaba */}
                                                     <div className="flex gap-2 mt-2">
                                                         <button
                                                             onClick={() => handlePrintForm(request.id!)}
-                                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
+                                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                             Print Form
                                                         </button>
@@ -503,7 +589,7 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                                                         <button
                                                             onClick={() => handleDeleteClick(request)}
                                                             disabled={updatingRequestId === request.id}
-                                                            className="bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white px-3 py-1 rounded text-xs font-medium"
+                                                            className="bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white px-3 py-1 rounded text-xs font-medium cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 hover:shadow-md"
                                                         >
                                                             Delete
                                                         </button>
@@ -582,7 +668,82 @@ export default function BorrowRequestsTable({ darkMode }: BorrowRequestsTablePro
                     onClose={() => setSelectedGatePass(null)} 
                 />
             )}
-            
+
+           <EquipApproveModal
+                    isOpen={showApproveModal}
+                    title="Approve Borrow Request"
+                    description="Review request details before approving."
+                    confirmText="Approve"
+                    cancelText="Cancel"
+                    onCancel={() => {
+                        setShowApproveModal(false);
+                        setSelectedRequest(null);
+                    }}
+                    onConfirm={() => {
+                        if (selectedRequest?.id) {
+                            updateRequestStatus(selectedRequest.id, "Approved");
+                        }
+                        setShowApproveModal(false);
+                        setSelectedRequest(null);
+                    }}
+                >
+                    {selectedRequest && (
+                        <div className="space-y-4 text-sm">
+
+                            {/* BASIC INFO */}
+                            <div className="border-b pb-2">
+                                <p><b>Request No:</b> {selectedRequest.requestNo || "—"}</p>
+                                <p><b>Requestor:</b> {selectedRequest.requestor}</p>
+                                <p><b>Purpose:</b> {selectedRequest.purpose}</p>
+                                <p><b>Status:</b> {selectedRequest.status || "Pending"}</p>
+                            </div>
+
+                            {/* INTENDED PERIOD */}
+                            <div>
+                                <p className="font-semibold mb-1">Intended Period</p>
+                                <p className="text-gray-700">
+                                   {getIntendedPeriod(selectedRequest)}
+                                </p>
+                            </div>
+
+                            {/* ITEMS TABLE */}
+                            <div>
+                                <p className="font-semibold mb-1">Items</p>
+
+                                <div className="overflow-x-auto border rounded-md">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-gray-100">
+                                            <tr>
+                                                <th className="p-2 text-left">Item</th>
+                                                <th className="p-2 text-left">Qty</th>
+                                                <th className="p-2 text-left">Remarks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(selectedRequest.items || []).map((item, idx) => (
+                                                <tr key={idx} className="border-t">
+                                                    <td className="p-2">{item.particulars || "—"}</td>
+                                                    <td className="p-2">{item.quantity || "—"}</td>
+                                                    <td className="p-2 text-gray-600">{item.remarks || "—"}</td>
+                                                </tr>
+                                            ))}
+
+                                            {(!selectedRequest.items || selectedRequest.items.length === 0) && (
+                                                <tr>
+                                                    <td colSpan={3} className="p-2 text-center text-gray-400">
+                                                        No items found
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    )}
+                </EquipApproveModal>
+                            
         </div>
     );
 }

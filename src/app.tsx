@@ -25,6 +25,7 @@ import useRequests from './hooks/useRequests';
 import useTheme from './hooks/useTheme';
 import useTrips from './hooks/useTrips';
 import { type Notification, type Request, type Trip } from './types';
+import EquipmentTable from './components/EquipmentTable';
 
 export function App() {
   // Firebase 
@@ -572,11 +573,7 @@ const handleLogout = async () => {
   <Maintenance category="Automotive" darkMode={darkMode} />
 </Route>
 <Route path="/analytics">
-  {isReportsAdmin ? (
-    <Analytics darkMode={darkMode} />
-  ) : (
-    <div>Unauthorized</div>
-  )}
+  {isReportsAdmin ? <Analytics darkMode={darkMode} /> : null}
 </Route>
 <Route path='/maintenance/motorcycle'>
   <Maintenance category="Motorcycle" darkMode={darkMode} />
@@ -600,6 +597,10 @@ const handleLogout = async () => {
   <Route path='/borrow-requests'>
     <BorrowRequestsTable darkMode={darkMode} />
   </Route>
+
+  <Route path="/equipment">
+  <EquipmentTable darkMode={darkMode} />
+</Route>
 
   <Route path="/borrow-checklist">
     <ItemsChecklist />

@@ -170,7 +170,7 @@ export type BorrowRequest = {
 
   items: Item[];
 
-  status?: 'Pending' | 'Approved' | 'Returned' | 'Cancelled';
+  status?: 'Pending' | 'Approved' | 'Returned' | 'Not Returned' | 'Cancelled' | "Rescheduled";
   timestamp?: Timestamp;
 
   dateReturned?: string;

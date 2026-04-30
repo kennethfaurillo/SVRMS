@@ -407,22 +407,44 @@ export default function RequestForm({ darkMode, onSubmit }: RequestFormProps) {
       />
       {passengers.length > 1 && (
         <button
-          type="button"
-          className="text-red-500 px-2 py-1 text-sm"
-          onClick={() => setPassengers(passengers.filter((_, i) => i !== index))}
-        >
-          Remove
-        </button>
+            type="button"
+            onClick={() => setPassengers(passengers.filter((_, i) => i !== index))}
+            className="
+                px-2 py-1 text-xs font-medium rounded-md
+                text-red-600 bg-red-50
+                border border-red-200
+                cursor-pointer
+
+                transition-all duration-200
+                hover:bg-red-100 hover:border-red-300 hover:text-red-700
+                hover:scale-[1.03]
+                active:scale-95
+            "
+            >
+            Remove
+            </button>
       )}
     </div>
   ))}
-        <button
-        type="button"
-        className="text-blue-600 text-sm mt-1 cursor-pointer hover:underline"
-        onClick={() => setPassengers([...passengers, ''])}
-        >
-        + Add Passenger
-        </button>
+       <button
+            type="button"
+            onClick={() => setPassengers([...passengers, ""])}
+            className={`
+                mt-2 w-full flex items-center justify-center
+                px-3 py-2 text-sm font-medium rounded-lg border
+                transition-all duration-300 transform
+
+                ${darkMode
+                ? "bg-gray-700 border-gray-600 text-blue-300 hover:bg-gray-600"
+                : "bg-white border-gray-200 text-blue-600 hover:bg-blue-50"
+                }
+
+                hover:-translate-y-1 hover:scale-[1.02] hover:shadow-md
+                active:scale-95 cursor-pointer
+            `}
+            >
+            + Add Passenger
+            </button>
         </div>
                 {/* Fourth row - Remarks and Submit */}
                 <div className="flex flex-col space-y-4">
