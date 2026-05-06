@@ -1,4 +1,5 @@
 import type { Request } from "./types";
+import type { BorrowRequest } from "./types";
 
 type Result = {
   ok: boolean;
@@ -35,7 +36,7 @@ export const exportToCsv = (requests: Request[]): Result => {
     "Requested Date/Time", "ETA", "Status", "Remarks"
   ];
 
-  const csvRows = [];
+ const csvRows: string[] = [];
   csvRows.push(headers.join(',')); // Add header row
 
   requests.forEach(request => {
@@ -74,10 +75,67 @@ export const exportToCsv = (requests: Request[]): Result => {
   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.setAttribute('download', 'service_vehicle_requests.csv');
+  link.setAttribute('download', `service_vehicle_requests_${getCurrentDate()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   // setMessage("Requests exported to CSV successfully!");
   return { ok: true }; // Indicate success
+};
+
+export const exportBorrowRequestsToCsv = (requests: BorrowRequest[]) => {
+  if (requests.length === 0) {
+    alert("No borrow requests to export!");
+    return;
+  }
+
+  const headers = [
+    "Request No",
+    "Date",
+    "Requestor",
+    "Purpose",
+    "Intended Period of Use",
+    "Status",
+    "Items",
+    "Date Returned",
+    "Received By",
+    "Remarks"
+  ];
+
+  const csvRows: string[] = [];
+  csvRows.push(headers.join(','));
+
+  requests.forEach((req) => {
+    const itemsString = req.items
+      .map((item) =>
+        `${item.particulars} (Qty: ${item.quantity})${item.remarks ? ` - ${item.remarks}` : ''}`
+      )
+      .join(" | ");
+
+    const row = [
+      `"${req.requestNo || ''}"`,
+      `"${req.date || ''}"`,
+      `"${req.requestor || ''}"`,
+      `"${req.purpose || ''}"`,
+      `"${req.period || ''}"`,
+      `"${req.status || 'Pending'}"`,
+      `"${itemsString}"`,
+      `"${req.dateReturned || ''}"`,
+      `"${req.receivedBy || ''}"`,
+      `"${req.remarks || ''}"`
+    ];
+
+    csvRows.push(row.join(','));
+  });
+
+  const csvString = csvRows.join('\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+
+  link.href = URL.createObjectURL(blob);
+  link.download = `equipment_borrow_requests_${getCurrentDate()}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState} from "preact/hooks";
+import { useMemo, useState, useEffect} from "preact/hooks";
 import type { Trip } from "../types";
 import { getCurrentDate, getCurrentTime } from "../utils";
 import { useAuth } from "../contexts/AuthContext";
@@ -34,6 +34,11 @@ export default function TripsTable({
     const { isAdmin } = useAuth();
     const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
     const { serviceVehiclesString: serviceVehicles } = useConstants();
+
+      // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 100;
+
     const filteredTrips = useMemo(() => {
         if (dateFilter === 'all') return trips;
 
@@ -60,6 +65,18 @@ export default function TripsTable({
             }
         });
     }, [trips, dateFilter]);
+
+      // Pagination logic
+    const totalPages = Math.ceil(filteredTrips.length / itemsPerPage);
+    const paginatedTrips = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredTrips.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredTrips, currentPage]);
+
+    // Reset to first page when filter changes
+        useEffect(() => {
+            setCurrentPage(1);
+        }, [dateFilter]);
 
     const getFilterCount = (filter: typeof dateFilter) => {
         if (filter === 'all') return trips.length;
@@ -97,6 +114,11 @@ export default function TripsTable({
         { bg: 'bg-pink-50', darkBg: 'bg-pink-900/20', border: 'border-pink-200', darkBorder: 'border-pink-700' },
         { bg: 'bg-indigo-50', darkBg: 'bg-indigo-900/20', border: 'border-indigo-200', darkBorder: 'border-indigo-700' }
     ];
+
+    const goToPage = (page: number) => {
+        if (page < 1 || page > totalPages) return;
+        setCurrentPage(page);
+    };
 
     return (
         <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 sm:p-6 rounded-lg shadow-inner mt-8`}>
@@ -137,297 +159,253 @@ export default function TripsTable({
                     {dateFilter === 'all' ? 'No approved trips yet.' : `No trips found for ${dateFilter} view.`}
                 </p>
             ) : (
-                <div className="h-[calc(100vh-375px)] overflow-y-scroll overflow-x-hidden">
-                    <table className="min-w-full border-collapse">
-                        <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
-                            <tr>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Trip Details</th>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
-                                 {/* ADDED START - Passengers Column */}
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Passengers</th>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
-                                <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
-                                {isAdmin && <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tr-md">Actions</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTrips.map((trip, tripIndex) => {
-                                const colorScheme = pastelColors[tripIndex % pastelColors.length];
-                               
+                <>
+                    <div className="h-[calc(100vh-375px)] overflow-y-scroll overflow-x-hidden">
+                        <table className="min-w-full border-collapse">
+                            <thead className={`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}`}>
+                                <tr>
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tl-md">Trip Details</th>
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden sm:table-cell">Personnel</th>
+                                     {/* ADDED START - Passengers Column */}
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Passengers</th>
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Purpose</th>
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 hidden lg:table-cell">Destination</th>
+                                    <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200">Status</th>
+                                    {isAdmin && <th scope="col" className="px-2 sm:px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border border-gray-200 rounded-tr-md">Actions</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                 {paginatedTrips.map((trip, tripIndex) => {
+                                    const colorScheme = pastelColors[tripIndex % pastelColors.length];
+                                   
 
-                                return (
-                                    <tr
-                                        key={trip.id}
-                                        className={`${darkMode ? colorScheme.darkBg : colorScheme.bg} border-l-4 ${darkMode ? colorScheme.darkBorder : colorScheme.border} hover:opacity-80 transition-opacity duration-200`}
-                                    >
-                                        {/* Trip Details: Trip Code, Date/Time, Service Vehicle, Driver - Always visible */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                                            {editingTripId === trip.id ? (
-                                                <div className="space-y-2">
-                                                    {/* Trip Code - Not editable */}
-                                                    <div className="text-sm font-bold text-gray-500">{trip.tripCode}</div>
-                                                    {/* Date/Time - Combined */}
+                                    return (
+                                        <tr
+                                            key={trip.id}
+                                            className={`${darkMode ? colorScheme.darkBg : colorScheme.bg} border-l-4 ${darkMode ? colorScheme.darkBorder : colorScheme.border} hover:opacity-80 transition-opacity duration-200`}
+                                        >
+                                            {/* Trip Details: Trip Code, Date/Time, Service Vehicle, Driver - Always visible */}
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                                {editingTripId === trip.id ? (
+                                                    <div className="space-y-2">
+                                                        {/* Trip Code - Not editable */}
+                                                        <div className="text-sm font-bold text-gray-500">{trip.tripCode}</div>
+                                                        {/* Date/Time - Combined */}
+                                                        <input
+                                                            type="datetime-local"
+                                                            name="dateTime"
+                                                            value={currentEditTripData?.dateTime || ''}
+                                                            onChange={handleTripEditChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        />
+                                                        {/* Service Vehicle */}
+                                                        <select
+                                                            name="vehicleAssigned"
+                                                            value={currentEditTripData?.vehicleAssigned || ''}
+                                                            onChange={handleTripEditChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        >
+                                                            <option value="">-- Select Vehicle --</option>
+                                                            {serviceVehicles.map((option) => (
+                                                                <option key={option} value={option}>{option}</option>
+                                                            ))}
+                                                        </select>
+                                                        {/* Driver */}
+                                                        <input
+                                                            type="text"
+                                                            name="driverName"
+                                                            value={currentEditTripData?.driverName || ''}
+                                                            onChange={handleTripEditChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="Driver name (optional)"
+                                                        />
+                                                        {/* ETA */}
+                                                        <input
+                                                            type="time"
+                                                            name="estimatedArrival"
+                                                            value={currentEditTripData?.estimatedArrival ? new Date(currentEditTripData.estimatedArrival).toTimeString().slice(0, 5) : ''}
+                                                            onChange={handleTripEditChange}
+                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="ETA"
+                                                        />
+                                                        {/* Mobile: Show personnel inline on mobile when editing */}
+                                                        <div className="sm:hidden">
+                                                            <input
+                                                                type="text"
+                                                                name="personnel"
+                                                                value={currentEditTripData?.personnel?.join(', ') || ''}
+                                                                onChange={handleTripEditChange}
+                                                                className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                                placeholder="Personnel (comma-separated)"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        {/* Trip Code - Bold and Bigger */}
+                                                        <div className="text-base font-bold">{trip.tripCode}</div>
+                                                        {/* Date/Time - Combined in one line, shorter on mobile */}
+                                                        <div className="text-xs font-medium">
+                                                            🕐 {trip.dateTime ?
+                                                                new Date(trip.dateTime).toLocaleString([], {
+                                                                    month: '2-digit',
+                                                                    day: '2-digit',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                }) :
+                                                                `${getCurrentDate()} ${getCurrentTime()}`
+                                                            }
+                                                        </div>
+                                                        {/* ETA */}
+                                                        {trip.estimatedArrival && (
+                                                            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                                ETA: {new Date(trip.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                        {/* Service Vehicle */}
+                                                        <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                                            🛻 {trip.vehicleAssigned}
+                                                        </div>
+                                                        {/* Driver */}
+                                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                            👤 {trip.driverName || 'No driver'}
+                                                        </div>
+                                                        {/* Mobile: Show personnel inline on mobile */}
+                                                        <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
+                                                            {trip.personnel?.join(', ') || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                                
+                                            {/* Personnel - Hidden on mobile */}
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
+                                                {editingTripId === trip.id ? (
                                                     <input
-                                                        type="datetime-local"
-                                                        name="dateTime"
-                                                        value={currentEditTripData?.dateTime || ''}
+                                                        type="text"
+                                                        name="personnel"
+                                                        value={currentEditTripData?.personnel?.join(', ') || ''}
                                                         onChange={handleTripEditChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        placeholder="Personnel (comma-separated)"
                                                     />
-                                                    {/* Service Vehicle */}
+                                                ) : (
+                                                    <div className="text-sm">
+                                                        {trip.personnel?.join(', ') || 'N/A'}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                            {editingTripId === trip.id ? (
+                                                <input
+                                                type="text"
+                                                name="passengers"
+                                                value={Array.isArray(currentEditTripData?.passengers) 
+                                                        ? currentEditTripData.passengers.join(', ') 
+                                                        : typeof currentEditTripData?.passengers === 'string'
+                                                            ? currentEditTripData.passengers
+                                                            : ''
+                                                }
+                                                onChange={handleTripEditChange}
+                                                className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                placeholder="Passengers (comma-separated)"
+                                                />
+                                            ) : (
+                                                trip.passengers
+                                                ? (Array.isArray(trip.passengers)
+                                                    ? trip.passengers.join(', ')
+                                                    : trip.passengers.split(',').map(p => p.trim()).join(', ')
+                                                )
+                                                : 'N/A'
+                                            )}
+                                            </td>
+                                            {/* Purpose - Always visible but condensed on mobile */}
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-xs ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                                                {editingTripId === trip.id ? (
+                                                    <div className="space-y-2">
+                                                        <input
+                                                            type="text"
+                                                            name="purpose"
+                                                            value={currentEditTripData?.purpose?.join(', ') || ''}
+                                                            onChange={handleTripEditChange}
+                                                            className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                            placeholder="Purpose (comma-separated)"
+                                                        />
+                                                        {/* Mobile: Show destination inline when editing */}
+                                                        <div className="lg:hidden">
+                                                            <input
+                                                                type="text"
+                                                                name="destination"
+                                                                value={currentEditTripData?.destination || ''}
+                                                                onChange={handleTripEditChange}
+                                                                className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                                placeholder="Destination"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="break-words">
+                                                        <div className="sm:whitespace-normal">
+                                                            {trip.purpose?.join(', ') || 'N/A'}
+                                                        </div>
+                                                        {/* Mobile: Show destination inline */}
+                                                        <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            </svg>
+                                                            {trip.destination || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            {/* Destination - Hidden on mobile/tablet */}
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
+                                                {editingTripId === trip.id ? (
+                                                    <input
+                                                        type="text"
+                                                        name="destination"
+                                                        value={currentEditTripData?.destination || ''}
+                                                        onChange={handleTripEditChange}
+                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
+                                                        placeholder="Destination"
+                                                    />
+                                                ) : (
+                                                    <div className="text-sm">
+                                                        {trip.destination || 'N/A'}
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            {/* Status - Always visible */}
+                                            <td className={`px-2 sm:px-3 py-1.5 text-sm font-semibold border border-gray-200`}>
+                                                {editingTripId === trip.id ? (
                                                     <select
-                                                        name="vehicleAssigned"
-                                                        value={currentEditTripData?.vehicleAssigned || ''}
+                                                        name="status"
+                                                        value={currentEditTripData?.status || ''}
                                                         onChange={handleTripEditChange}
                                                         className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
                                                     >
-                                                        <option value="">-- Select Vehicle --</option>
-                                                        {serviceVehicles.map((option) => (
-                                                            <option key={option} value={option}>{option}</option>
-                                                        ))}
+                                                        <option value="Not Fulfilled">Not Fulfilled</option>
+                                                        <option value="Fulfilled">Fulfilled</option>
                                                     </select>
-                                                    {/* Driver */}
-                                                    <input
-                                                        type="text"
-                                                        name="driverName"
-                                                        value={currentEditTripData?.driverName || ''}
-                                                        onChange={handleTripEditChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="Driver name (optional)"
-                                                    />
-                                                    {/* ETA */}
-                                                    <input
-                                                        type="time"
-                                                        name="estimatedArrival"
-                                                        value={currentEditTripData?.estimatedArrival ? new Date(currentEditTripData.estimatedArrival).toTimeString().slice(0, 5) : ''}
-                                                        onChange={handleTripEditChange}
-                                                        className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="ETA"
-                                                    />
-                                                    {/* Mobile: Show personnel inline on mobile when editing */}
-                                                    <div className="sm:hidden">
-                                                        <input
-                                                            type="text"
-                                                            name="personnel"
-                                                            value={currentEditTripData?.personnel?.join(', ') || ''}
-                                                            onChange={handleTripEditChange}
-                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                            placeholder="Personnel (comma-separated)"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-1">
-                                                    {/* Trip Code - Bold and Bigger */}
-                                                    <div className="text-base font-bold">{trip.tripCode}</div>
-                                                    {/* Date/Time - Combined in one line, shorter on mobile */}
-                                                    <div className="text-xs font-medium">
-                                                        🕐 {trip.dateTime ?
-                                                            new Date(trip.dateTime).toLocaleString([], {
-                                                                month: '2-digit',
-                                                                day: '2-digit',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            }) :
-                                                            `${getCurrentDate()} ${getCurrentTime()}`
-                                                        }
-                                                    </div>
-                                                    {/* ETA */}
-                                                    {trip.estimatedArrival && (
-                                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                            ETA: {new Date(trip.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </div>
-                                                    )}
-                                                    {/* Service Vehicle */}
-                                                    <div className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400">
-                                                        🛻 {trip.vehicleAssigned}
-                                                    </div>
-                                                    {/* Driver */}
-                                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                        👤 {trip.driverName || 'No driver'}
-                                                    </div>
-                                                    {/* Mobile: Show personnel inline on mobile */}
-                                                    <div className="sm:hidden text-xs text-gray-600 dark:text-gray-400">
-                                                        {trip.personnel?.join(', ') || 'N/A'}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </td>
-                                            
-                                        {/* Personnel - Hidden on mobile */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden sm:table-cell`}>
-                                            {editingTripId === trip.id ? (
-                                                <input
-                                                    type="text"
-                                                    name="personnel"
-                                                    value={currentEditTripData?.personnel?.join(', ') || ''}
-                                                    onChange={handleTripEditChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                    placeholder="Personnel (comma-separated)"
-                                                />
-                                            ) : (
-                                                <div className="text-sm">
-                                                    {trip.personnel?.join(', ') || 'N/A'}
-                                                </div>
-                                            )}
-                                        </td>
-                                        
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                                        {editingTripId === trip.id ? (
-                                            <input
-                                            type="text"
-                                            name="passengers"
-                                            value={Array.isArray(currentEditTripData?.passengers) 
-                                                    ? currentEditTripData.passengers.join(', ') 
-                                                    : typeof currentEditTripData?.passengers === 'string'
-                                                        ? currentEditTripData.passengers
-                                                        : ''
-                                            }
-                                            onChange={handleTripEditChange}
-                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                            placeholder="Passengers (comma-separated)"
-                                            />
-                                        ) : (
-                                            trip.passengers
-                                            ? (Array.isArray(trip.passengers)
-                                                ? trip.passengers.join(', ')
-                                                : trip.passengers.split(',').map(p => p.trim()).join(', ')
-                                            )
-                                            : 'N/A'
-                                        )}
-                                        </td>
-                                        {/* Purpose - Always visible but condensed on mobile */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 max-w-xs ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                                            {editingTripId === trip.id ? (
-                                                <div className="space-y-2">
-                                                    <input
-                                                        type="text"
-                                                        name="purpose"
-                                                        value={currentEditTripData?.purpose?.join(', ') || ''}
-                                                        onChange={handleTripEditChange}
-                                                        className={`w-full border rounded-md px-2 py-1 ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                        placeholder="Purpose (comma-separated)"
-                                                    />
-                                                    {/* Mobile: Show destination inline when editing */}
-                                                    <div className="lg:hidden">
-                                                        <input
-                                                            type="text"
-                                                            name="destination"
-                                                            value={currentEditTripData?.destination || ''}
-                                                            onChange={handleTripEditChange}
-                                                            className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                            placeholder="Destination"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="break-words">
-                                                    <div className="sm:whitespace-normal">
-                                                        {trip.purpose?.join(', ') || 'N/A'}
-                                                    </div>
-                                                    {/* Mobile: Show destination inline */}
-                                                    <div className="lg:hidden text-xs text-gray-600 dark:text-gray-400 mt-1 flex gap-x-0.5">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        </svg>
-                                                        {trip.destination || 'N/A'}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </td>
-
-                                        {/* Destination - Hidden on mobile/tablet */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm border border-gray-200 ${darkMode ? 'text-gray-200' : 'text-gray-700'} hidden lg:table-cell`}>
-                                            {editingTripId === trip.id ? (
-                                                <input
-                                                    type="text"
-                                                    name="destination"
-                                                    value={currentEditTripData?.destination || ''}
-                                                    onChange={handleTripEditChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                    placeholder="Destination"
-                                                />
-                                            ) : (
-                                                <div className="text-sm">
-                                                    {trip.destination || 'N/A'}
-                                                </div>
-                                            )}
-                                        </td>
-
-                                        {/* Status - Always visible */}
-                                        <td className={`px-2 sm:px-3 py-1.5 text-sm font-semibold border border-gray-200`}>
-                                            {editingTripId === trip.id ? (
-                                                <select
-                                                    name="status"
-                                                    value={currentEditTripData?.status || ''}
-                                                    onChange={handleTripEditChange}
-                                                    className={`w-full border rounded-md px-2 py-1 text-xs ${darkMode ? 'bg-gray-600 text-white border-gray-500' : 'border-gray-300'}`}
-                                                >
-                                                    <option value="Not Fulfilled">Not Fulfilled</option>
-                                                    <option value="Fulfilled">Fulfilled</option>
-                                                </select>
-                                            ) : (
-                                                <span className={`${trip.status === 'Fulfilled' ? 'text-green-500' : 'text-orange-500'}`}>
-                                                    {trip.status}
-                                                </span>
-                                            )}
-                                        </td>
-
-                                        {/* Actions - Always visible for admin */}
-                                        {isAdmin && (
-                                            <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
-                                                {editingTripId === trip.id ? (
-                                                    // Editing mode: Show Save and Cancel buttons
-                                                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                                                        <button
-                                                            onClick={() => saveEditedTrip(trip.id)}
-                                                            disabled={updatingTripId === trip.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                                ${updatingTripId === trip.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">
-                                                                {updatingTripId === trip.id ? 'Saving...' : 'Save'}
-                                                            </span>
-                                                            <span className="sm:hidden">
-                                                                {updatingTripId === trip.id ? '⏳' : '💾'}
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            onClick={cancelTripEditing}
-                                                            disabled={updatingTripId === trip.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                                ${updatingTripId === trip.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">Cancel</span>
-                                                            <span className="sm:hidden">❌</span>
-                                                        </button>
-                                                    </div>
                                                 ) : (
-                                                    // Normal mode: Show Edit button and Mark as Fulfilled button
-                                                    <div className="flex flex-col sm:flex-row w-fit gap-1 sm:gap-2">
-                                                        <button
-                                                            onClick={() => handleEditTrip(trip)}
-                                                            disabled={updatingTripId === trip.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                                ${updatingTripId === trip.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">Edit</span>
-                                                            <span className="sm:hidden">Edit</span>
-                                                        </button>
-                                                        {trip.status === 'Not Fulfilled' && (
+                                                    <span className={`${trip.status === 'Fulfilled' ? 'text-green-500' : 'text-orange-500'}`}>
+                                                        {trip.status}
+                                                    </span>
+                                                )}
+                                            </td>
+
+                                            {/* Actions - Always visible for admin */}
+                                            {isAdmin && (
+                                                <td className="px-2 sm:px-3 py-1.5 text-right text-sm font-medium border border-gray-200">
+                                                    {editingTripId === trip.id ? (
+                                                        // Editing mode: Show Save and Cancel buttons
+                                                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                                                             <button
-                                                                onClick={() => handleMarkTripAsFulfilled(trip)}
+                                                                onClick={() => saveEditedTrip(trip.id)}
                                                                 disabled={updatingTripId === trip.id}
                                                                 className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
                                                                     ${updatingTripId === trip.id
@@ -436,35 +414,119 @@ export default function TripsTable({
                                                                     }`}
                                                             >
                                                                 <span className="hidden sm:inline">
-                                                                    {updatingTripId === trip.id ? 'Updating...' : 'Mark as Fulfilled'}
+                                                                    {updatingTripId === trip.id ? 'Saving...' : 'Save'}
                                                                 </span>
                                                                 <span className="sm:hidden">
-                                                                    {updatingTripId === trip.id ? '⏳' : 'Mark as Fulfilled'}
+                                                                    {updatingTripId === trip.id ? '⏳' : '💾'}
                                                                 </span>
                                                             </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleDeleteTrip(trip)}
-                                                            disabled={updatingTripId === trip.id}
-                                                            className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
-                                                                ${updatingTripId === trip.id
-                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            <span className="hidden sm:inline">Delete</span>
-                                                            <span className="sm:hidden">Delete</span>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                                                            <button
+                                                                onClick={cancelTripEditing}
+                                                                disabled={updatingTripId === trip.id}
+                                                                className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                                    ${updatingTripId === trip.id
+                                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-gray-500 text-white hover:bg-gray-600 cursor-pointer'
+                                                                    }`}
+                                                            >
+                                                                <span className="hidden sm:inline">Cancel</span>
+                                                                <span className="sm:hidden">❌</span>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        // Normal mode: Show Edit button and Mark as Fulfilled button
+                                                        <div className="flex flex-col sm:flex-row w-fit gap-1 sm:gap-2">
+                                                            <button
+                                                                onClick={() => handleEditTrip(trip)}
+                                                                disabled={updatingTripId === trip.id}
+                                                                className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                                    ${updatingTripId === trip.id
+                                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
+                                                                    }`}
+                                                            >
+                                                                <span className="hidden sm:inline">Edit</span>
+                                                                <span className="sm:hidden">Edit</span>
+                                                            </button>
+                                                            {trip.status === 'Not Fulfilled' && (
+                                                                <button
+                                                                    onClick={() => handleMarkTripAsFulfilled(trip)}
+                                                                    disabled={updatingTripId === trip.id}
+                                                                    className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                                        ${updatingTripId === trip.id
+                                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                            : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                                                        }`}
+                                                                >
+                                                                    <span className="hidden sm:inline">
+                                                                        {updatingTripId === trip.id ? 'Updating...' : 'Mark as Fulfilled'}
+                                                                    </span>
+                                                                    <span className="sm:hidden">
+                                                                        {updatingTripId === trip.id ? '⏳' : 'Mark as Fulfilled'}
+                                                                    </span>
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleDeleteTrip(trip)}
+                                                                disabled={updatingTripId === trip.id}
+                                                                className={`px-2 sm:px-3 py-1 rounded-md text-xs transition duration-150 ease-in-out
+                                                                    ${updatingTripId === trip.id
+                                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-red-500 text-white hover:bg-red-600 cursor-pointer'
+                                                                    }`}
+                                                            >
+                                                                <span className="hidden sm:inline">Delete</span>
+                                                                <span className="sm:hidden">Delete</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                      {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className={`flex flex-col sm:flex-row items-center justify-between mt-4 gap-3 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                <div className="text-sm">
+                                    Page {currentPage} of {totalPages} • Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredTrips.length)} of {filteredTrips.length} trips
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => goToPage(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 flex items-center gap-1
+                                            ${currentPage === 1 
+                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500' 
+                                                : darkMode 
+                                                    ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+                                                    : 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-700'
+                                            }`}
+                                    >
+                                        ← Previous
+                                    </button>
+
+                                    <button
+                                        onClick={() => goToPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 flex items-center gap-1
+                                            ${currentPage === totalPages 
+                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500' 
+                                                : darkMode 
+                                                    ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+                                                    : 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-700'
+                                            }`}
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                </>
             )}
         </div>
     );

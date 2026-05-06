@@ -149,4 +149,31 @@ export type FilterType =
    driverSignature?: string;
     mechanicSignature?: string;
 }
+export type Item = {
+  particulars: string;
+  quantity: string;
+  remarks: string;
+};
 
+export type BorrowRequest = {
+  hasMaintenanceChecklist: any;
+  returnDate: any;
+  startDate: any;
+  createdAt: any;
+
+  id?: string;
+  requestNo: string;
+  date: string;
+  requestor: string;
+  purpose: string;
+  period: string;
+
+  items: Item[];
+
+  status?: 'Pending' | 'Approved' | 'Returned' | 'Not Returned' | 'Cancelled' | "Rescheduled";
+  timestamp?: Timestamp;
+
+  dateReturned?: string;
+  receivedBy?: string;
+  remarks?: string;
+};

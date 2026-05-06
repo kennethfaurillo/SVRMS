@@ -65,28 +65,30 @@ export default function useTrips(onTripChange?: (type: 'added' | 'modified' | 'r
 
 // Function to generate auto-filled trip code in format YYMMDD-XXXX
 const generateTripCode = (existingTrips: Trip[]) => {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);           // 26
-    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 04
-    const day = now.getDate().toString().padStart(2, '0');         // 08
-    
-    const datePrefix = `${year}${month}${day}`;   // 260408
-
-    
     const existingNumbers = existingTrips
-        .filter(trip => trip.tripCode?.startsWith(datePrefix + "-"))
-        .map(trip => {
-            const sequencePart = trip.tripCode.split('-')[1];
-            return parseInt(sequencePart, 10);
-        })
-        .filter(num => !isNaN(num));
+    .map(trip => {
+        const parts = trip.tripCode?.split("-");
+        const num = parts?.[1];
 
-    const highestNumber = existingNumbers.length > 0 
-        ? Math.max(...existingNumbers) 
+        if (!num) return null;
+
+        const parsed = Number(num);
+        return isNaN(parsed) ? null : parsed;
+    })
+    .filter((num): num is number => num !== null);
+    const highestNumber = existingNumbers.length > 0
+        ? Math.max(...existingNumbers)
         : 0;
 
     const nextNumber = highestNumber + 1;
-    const sequenceStr = nextNumber.toString().padStart(6, '0');   // 000001
+    const sequenceStr = nextNumber.toString().padStart(6, '0');
 
-    return `${datePrefix}-${sequenceStr}`;   // 260408-000001
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+
+    const datePrefix = `${year}${month}${day}`;
+
+    return `${datePrefix}-${sequenceStr}`;
 };

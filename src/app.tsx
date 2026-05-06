@@ -13,12 +13,19 @@ import Sidebar from './components/Sidebar';
 import TripsTable from './components/TripsTable';
 import Maintenance from './components/Maintenance';
 import Analytics from './components/Analytics';
+import FuelReports from './components/FuelReports';
+import MaintenanceReports from './components/MaintenanceReports';
+import BorrowRequestForm from "./components/BorrowRequestForm";
+import BorrowRequestsTable from "./components/BorrowRequestsTable";
+import ItemsChecklist from "./components/ItemsChecklist";
+import EquipmentBorrowReport from "./components/EquipmentBorrowReport";
 import { useAuth } from './contexts/AuthContext';
 import { firebaseFirestore } from './firebase';
 import useRequests from './hooks/useRequests';
 import useTheme from './hooks/useTheme';
 import useTrips from './hooks/useTrips';
 import { type Notification, type Request, type Trip } from './types';
+import EquipmentTable from './components/EquipmentTable';
 
 export function App() {
   // Firebase 
@@ -32,7 +39,10 @@ export function App() {
   const [darkMode, setDarkMode] = useTheme();
   const { addRequest } = useRequests(handleRequestsChange);
   const { trips } = useTrips(handleTripChange);
-  const { user, userProfile, isAdmin, signOutUser } = useAuth();
+ const { user, userProfile, isAdmin, role, signOutUser } = useAuth();
+
+  // Determine if user has reports admin access (e.g., based on admin status or specific role)
+  const isReportsAdmin = isAdmin || userProfile?.role === 'reports admin';
 
   // Global Today Header
 const [currentDateTime, setCurrentDateTime] = useState(new Date());
@@ -563,19 +573,48 @@ const handleLogout = async () => {
   <Maintenance category="Automotive" darkMode={darkMode} />
 </Route>
 <Route path="/analytics">
-  <Analytics darkMode={darkMode} />
+  {isReportsAdmin ? <Analytics darkMode={darkMode} /> : null}
 </Route>
 <Route path='/maintenance/motorcycle'>
   <Maintenance category="Motorcycle" darkMode={darkMode} />
 </Route>
-  <Route path='/equipment-borrow'>
-  <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
-    <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
-  </div>
+<Route path="/fuel-reports">
+  {isReportsAdmin ? <FuelReports /> : <div>Unauthorized</div>}
 </Route>
-            <Route path='/'>
-              <Home darkMode={darkMode} />
-            </Route>
+
+  <Route path="/maintenance-reports">
+  {isReportsAdmin ? <MaintenanceReports /> : <div>Unauthorized</div>}
+</Route>
+
+ <Route path="/borrow-report">
+  {isReportsAdmin ? <EquipmentBorrowReport /> : <div>Unauthorized</div>}
+</Route>
+
+  <Route path='/borrow-form'>
+    <BorrowRequestForm />
+  </Route>
+
+  <Route path='/borrow-requests'>
+    <BorrowRequestsTable darkMode={darkMode} />
+  </Route>
+
+  <Route path="/equipment">
+  <EquipmentTable darkMode={darkMode} />
+</Route>
+
+  <Route path="/borrow-checklist">
+    <ItemsChecklist />
+  </Route>
+
+  <Route path='/equipment-borrow'>
+    <div className={`w-full h-64 flex items-center justify-center rounded-xl shadow-md ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'}`}>
+      <h2 className="text-xl sm:text-2xl font-bold">Coming Soon!</h2>
+    </div>
+  </Route>
+
+  <Route path='/'>
+    <Home darkMode={darkMode} />
+  </Route>
             <Route>Not Found!</Route>
           </Switch>
         </div>
