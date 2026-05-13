@@ -152,6 +152,8 @@ export type FilterType =
 export type Item = {
   particulars: string;
   quantity: string;
+  unit: string;
+  location: string;
   remarks: string;
 };
 
@@ -177,3 +179,16 @@ export type BorrowRequest = {
   receivedBy?: string;
   remarks?: string;
 };
+
+export interface Equipment {
+  id?: string;
+  requestNo: string;
+  requestor: string;
+  purpose: string;
+  items: Item[];
+  status?: string;
+  createdAt?: Timestamp;
+  dateReturned?: string;
+  timestamp?: Timestamp;
+}
+

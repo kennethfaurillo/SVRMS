@@ -244,8 +244,6 @@ const formatETA = (isoString?: string): string => {
       driverLog: { ...(tripData.driverLog || {}), ...updates }
     });
   };
-
-  // ==================== PRINT FUNCTION (2 copies on 1 A4) ====================
  
   // ==================== FINAL PRINT - 2 SHEETS (Ticket + 2 Compact Letter B) ====================
   const getPrintHtml = () => {
@@ -277,7 +275,7 @@ const formatETA = (isoString?: string): string => {
 
     const tripTicketNo = tripData.tripCode || "N/A";
 
-    const mechanicName = tripData.mechanicName || "________________________";
+   
     const recommendedBy = tripData.recommendedBy || "________________________";
     const approvedBy     = tripData.approvedBy     || "________________________";
 
@@ -429,11 +427,6 @@ const formatETA = (isoString?: string): string => {
               </table>
             <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
             <div class="signatures" style="margin-top:auto;">
-              <div class="signature-box">
-                <div>${mechanicName}</div>
-                <div class="signature-line"></div>
-                Mechanic
-              </div>
 
               <div class="signature-box">
                 <div>${recommendedBy}</div>
@@ -481,11 +474,6 @@ const formatETA = (isoString?: string): string => {
               </table>
             <div class="note"><strong>Return this trip ticket to GS after vehicle use.</strong></div>
             <div class="signatures" style="margin-top:auto;">
-             <div class="signature-box">
-                <div>${mechanicName}</div>
-                <div class="signature-line"></div>
-                Mechanic
-              </div>
 
               <div class="signature-box">
                 <div>${recommendedBy}</div>
@@ -1044,25 +1032,9 @@ const formatETA = (isoString?: string): string => {
 
 {/* Editable Signatures */}
         <div style={{ marginTop: 40 }}>
-          <strong>Signatures:</strong>
+         
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
-            <div style={{ width: "32%", textAlign: "center" }}>
-              Mechanic:<br />
-              <input
-                type="text"
-                value={tripData.mechanicName || ""}
-                onChange={(e) => setTripData({ ...tripData, mechanicName: e.currentTarget.value })}
-                style={{
-                width: "85%",
-                marginTop: 35,
-                border: "none",
-                borderBottom: "2px solid #000",
-                textAlign: "center",
-                background: darkMode ? "#111827" : "#fff",
-                color: darkMode ? "#fff" : "#000"
-              }}
-              />
-            </div>
+          
             <div style={{ width: "32%", textAlign: "center" }}>
               Recommended by:<br />
               <input

@@ -175,9 +175,20 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
         return "—";
     };
 
-    const combineItems = (items: Item[] = []) => items.map(item => item.particulars || "—").join("\n") || "—";
-    const combineQuantities = (items: Item[] = []) => items.map(item => item.quantity || "—").join("\n") || "—";
-    const combineRemarks = (items: Item[] = []) => items.map(item => item.remarks?.trim() || "—").join("\n") || "—";
+    const combineItems = (items: Item[] = []) =>
+    items.map(item => item.particulars || "—").join("\n") || "—";
+
+    const combineQuantities = (items: Item[] = []) =>
+    items.map(item => item.quantity || "—").join("\n") || "—";
+
+    const combineUnits = (items: Item[] = []) =>
+    items.map(item => item.unit || "—").join("\n") || "—";
+
+    const combineLocations = (items: Item[] = []) =>
+    items.map(item => item.location || "—").join("\n") || "—";
+
+    const combineRemarks = (items: Item[] = []) =>
+    items.map(item => item.remarks?.trim() || "—").join("\n") || "—";
 
     // ==================== ACTION HANDLERS ====================
     const updateRequestStatus = async (requestId: string, newStatus: 'Approved'  | 'Cancelled' | 'Rescheduled') => {
@@ -243,6 +254,8 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
     items: (requestEditData.items || []).map(item => ({
         particulars: item.particulars ?? "",
         quantity: item.quantity ?? "",
+           unit: item.unit ?? "",
+         location: item.location ?? "",
         remarks: item.remarks ?? ""
     })),
     status: requestEditData.status ?? "Pending",
@@ -320,6 +333,8 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                     <th className="px-4 py-3 text-left border">Intended Period of Use</th>
                                     <th className="px-4 py-3 text-left border">Item</th>
                                     <th className="px-4 py-3 text-left border">Qty</th>
+                                    <th className="px-4 py-3 text-left border">Unit</th>
+                                    <th className="px-4 py-3 text-left border">Location</th>
                                     <th className="px-4 py-3 text-left border">Remarks</th>
                                     <th className="px-4 py-3 text-left border">Status</th>
                                     {isAdmin && <th className="px-4 py-3 text-left border w-80">Actions</th>}
@@ -417,7 +432,7 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                                         ...prev,
                                                         items: [
                                                             ...(prev.items || []),
-                                                            { particulars: "", quantity: "", remarks: "" }
+                                                            { particulars: "", quantity: "", unit: "", location: "", remarks: "" }
                                                         ]
                                                         };
                                                     });
@@ -462,6 +477,72 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                                 <div className="whitespace-pre-line font-medium">
                                                 {combineQuantities(request.items)}
                                                 </div>
+                                                )}
+                                                </td>
+                                                <td className="px-4 py-4 border">
+                                                {editingRequestId===request.id ?(
+                                                    <div className="space-y-2">
+                                                    {requestEditData?.items?.map((item,index)=>(
+                                                        <select
+                                                        key={index}
+                                                        value={item.unit || ""}
+                                                        onChange={(e)=>{
+                                                            const updated=[...(requestEditData?.items||[])];
+
+                                                            updated[index]={
+                                                            ...updated[index],
+                                                            unit:e.currentTarget.value
+                                                            };
+
+                                                            setRequestEditData({
+                                                            ...requestEditData!,
+                                                            items:updated
+                                                            });
+                                                        }}
+                                                        className="border px-2 py-1 w-full text-xs"
+                                                        >
+                                                      <option value="">-- Select Unit --</option>
+                                                        <option value="Set">Set</option>
+                                                        <option value="Pc">Pc</option>
+                                                        <option value="Lot">Lot</option>
+                                                        </select>
+                                                    ))}
+                                                    </div>
+                                                ):(
+                                                    <div className="whitespace-pre-line font-medium">
+                                                    {combineUnits(request.items)}
+                                                    </div>
+                                                )}
+                                                </td>
+                                                <td className="px-4 py-4 border">
+                                                {editingRequestId===request.id ?(
+                                                    <div className="space-y-2">
+                                                    {requestEditData?.items?.map((item,index)=>(
+                                                        <input
+                                                        key={index}
+                                                        type="text"
+                                                        value={item.location || ""}
+                                                        onChange={(e)=>{
+                                                            const updated=[...(requestEditData?.items||[])];
+
+                                                            updated[index]={
+                                                            ...updated[index],
+                                                            location:e.currentTarget.value
+                                                            };
+
+                                                            setRequestEditData({
+                                                            ...requestEditData!,
+                                                            items:updated
+                                                            });
+                                                        }}
+                                                        className="border px-2 py-1 w-full text-xs"
+                                                        />
+                                                    ))}
+                                                    </div>
+                                                ):(
+                                                    <div className="whitespace-pre-line text-xs">
+                                                    {combineLocations(request.items)}
+                                                    </div>
                                                 )}
                                                 </td>
                                         <td className="px-4 py-4 border">
@@ -716,6 +797,8 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                             <tr>
                                                 <th className="p-2 text-left">Item</th>
                                                 <th className="p-2 text-left">Qty</th>
+                                                <th className="p-2 text-left">Unit</th>
+                                                <th className="p-2 text-left">Location</th>
                                                 <th className="p-2 text-left">Remarks</th>
                                             </tr>
                                         </thead>
@@ -723,8 +806,10 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                             {(selectedRequest.items || []).map((item, idx) => (
                                                 <tr key={idx} className="border-t">
                                                     <td className="p-2">{item.particulars || "—"}</td>
-                                                    <td className="p-2">{item.quantity || "—"}</td>
-                                                    <td className="p-2 text-gray-600">{item.remarks || "—"}</td>
+                                                 <td className="p-2">{item.quantity || "—"}</td>
+                                                <td className="p-2">{item.unit || "—"}</td>
+                                                <td className="p-2">{item.location || "—"}</td>
+                                                <td className="p-2 text-gray-600">{item.remarks || "—"}</td>
                                                 </tr>
                                             ))}
 

@@ -5,6 +5,8 @@ import { firebaseFirestore } from "../firebase";
 type Item = {
   particulars: string;
   quantity: string;
+  unit: string;
+  location: string;
   remarks: string;
 };
 
@@ -68,7 +70,9 @@ export default function BorrowersForm() {
   const [loading, setLoading] = useState(false);
 
   const [requestNo, setRequestNo] = useState("");
-  const [date, setDate] = useState("");
+  const [date] = useState(
+  new Date().toISOString().split("T")[0]
+);
   const [requestor, setRequestor] = useState("");
   const [purpose, setPurpose] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -78,6 +82,8 @@ export default function BorrowersForm() {
   const [currentItem, setCurrentItem] = useState<Item>({
     particulars: "",
     quantity: "1",
+    unit: "",
+    location: "",
     remarks: ""
   });
 
@@ -133,6 +139,8 @@ export default function BorrowersForm() {
     setCurrentItem({
       particulars: "",
       quantity: "1",
+      unit: "",
+      location: "",
       remarks: ""
     });
   };
@@ -172,13 +180,12 @@ export default function BorrowersForm() {
       alert(`Borrow request submitted successfully!\nRequest No: ${requestNo}`);
 
       // Reset form
-      setDate("");
       setRequestor("");
       setPurpose("");
       setStartDate("");
       setReturnDate("");
       setAddedItems([]);
-      setCurrentItem({ particulars: "", quantity: "1", remarks: "" });
+      setCurrentItem({ particulars: "", quantity: "1", unit: "", location: "", remarks: "" });
       generateRequestNo();
 
     } catch (error: any) {
@@ -209,16 +216,6 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Request Date</label>
-            <input 
-              type="date" 
-              className="border w-full p-3 rounded"
-              value={date}
-              onChange={(e) => setDate(e.currentTarget.value)}
-            />
-          </div>
-
-          <div>
             <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Name of Requestor</label>
             <input 
               className="border w-full p-3 rounded"
@@ -228,18 +225,22 @@ export default function BorrowersForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Purpose</label>
-            <input 
-              className="border w-full p-3 rounded"
-              value={purpose}
-              onChange={(e) => setPurpose(e.currentTarget.value)}
-              placeholder="Purpose of borrowing"
-            />
-          </div>
+         <div className="md:col-span-2">
+          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">
+            Purpose
+          </label>
+
+          <textarea
+            className="border w-full p-3 rounded resize-none"
+            rows={2}
+            value={purpose}
+            onChange={(e) => setPurpose(e.currentTarget.value)}
+            placeholder="Purpose of borrowing"
+          />
+        </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Start Date (Hihiram)</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Start Date (Araw ng Paghiram)</label>
             <input 
               type="date" 
               className="border w-full p-3 rounded"
@@ -249,7 +250,7 @@ export default function BorrowersForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Return Date (Ibabalik)</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-600">Return Date (Araw ng Pagbalik)</label>
             <input 
               type="date" 
               className="border w-full p-3 rounded"
@@ -279,7 +280,7 @@ export default function BorrowersForm() {
                 </select>
               </div>
 
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <label className="text-xs font-medium mb-1 block">Quantity</label>
                 <input
                   type="number"
@@ -287,6 +288,31 @@ export default function BorrowersForm() {
                   className="border w-full p-3 rounded"
                   value={currentItem.quantity}
                   onChange={(e) => handleCurrentItemChange("quantity", e.currentTarget.value)}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-medium mb-1 block">Unit</label>
+
+                <select
+                  className="border w-full p-3 rounded"
+                  value={currentItem.unit}
+                  onChange={(e) => handleCurrentItemChange("unit", e.currentTarget.value)}
+                >
+                  <option value="Set">Set</option>
+                  <option value="Pc">Pc</option>
+                  <option value="Lot">Lot</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-3">
+                <label className="text-xs font-medium mb-1 block">Location</label>
+
+                <input
+                  className="border w-full p-3 rounded"
+                  value={currentItem.location}
+                  onChange={(e) => handleCurrentItemChange("location", e.currentTarget.value)}
+                  placeholder="Location"
                 />
               </div>
 
@@ -301,24 +327,24 @@ export default function BorrowersForm() {
               </div>
             </div>
 
-            {/* OK Button*/}
+                      {/* Add Item Button */}
             <div className="flex justify-end mt-6">
-         <button
-            onClick={addItemToList}
-            className={`
-              mt-2 flex items-center justify-center
-              px-6 py-3 text-sm font-medium rounded-lg border
-              transition-all duration-300 transform
+              <button
+                onClick={addItemToList}
+                className={`
+                  mt-2 flex items-center justify-center
+                  px-6 py-3 text-sm font-medium rounded-lg border
+                  transition-all duration-300 transform
 
-              bg-blue-600 border-gray-200 text-white hover:bg-blue-50
-              dark:bg-gray-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-600
+                  bg-blue-600 border-gray-200 text-white hover:bg-blue-700
+                  dark:bg-gray-700 dark:border-gray-600 dark:text-blue-300 dark:hover:bg-gray-600
 
-              hover:-translate-y-1 hover:scale-[1.02] hover:shadow-md
-              active:scale-95 cursor-pointer
-            `}
-          >
-            OK
-          </button>
+                  hover:-translate-y-1 hover:scale-[1.02] hover:shadow-md
+                  active:scale-95 cursor-pointer
+                `}
+              >
+                Add Item
+              </button>
             </div>
           </div>
         </div>
@@ -340,10 +366,13 @@ export default function BorrowersForm() {
             >
               <div className="flex-1">
                 <p className="font-medium text-gray-800">{item.particulars}</p>
-                <p className="text-sm text-gray-600">
-                  Quantity: <span className="font-medium">{item.quantity}</span>
-                  {item.remarks && ` • ${item.remarks}`}
-                </p>
+              <p className="text-sm text-gray-600">
+                Quantity: <span className="font-medium">{item.quantity}</span> {item.unit}
+
+                {item.location && ` • Location: ${item.location}`}
+
+                {item.remarks && ` • ${item.remarks}`}
+              </p>
               </div>
 
               <button

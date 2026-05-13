@@ -2,28 +2,32 @@ import { useMemo, useState, useEffect } from "preact/hooks";
 import { doc, updateDoc, Timestamp, deleteDoc } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
 import useBorrowRequests from "../hooks/useBorrowRequest";
-import type { BorrowRequest } from "../types";
+import type { Equipment} from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import useEquipment from "../hooks/useEquipment";
 
 interface EquipmentTableProps {
   darkMode: boolean;
+  onMarkReturned: (id: string, requestNo: string, requestor: string) => void;
+  onMarkNotReturned: (id: string, requestNo: string, requestor: string) => void;
 }
 
-export default function EquipmentTable({ darkMode }: EquipmentTableProps) {
-  const { borrowRequests } = useBorrowRequests();
+export default function EquipmentTable({ darkMode, onMarkReturned, onMarkNotReturned }: EquipmentTableProps) {
+  const { equipment } = useEquipment();
   const { isAdmin } = useAuth();
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<BorrowRequest | null>(null);
+  const [editData, setEditData] = useState<Equipment | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
   const ITEMS_PER_PAGE = 100;
 
   useEffect(() => {
   setCurrentPage(1);
-}, [borrowRequests]);
+}, [equipment, dateFilter]);
 
   const pastelColors = [
   { bg: "bg-blue-50", darkBg: "bg-blue-900/20", border: "border-blue-200", darkBorder: "border-blue-700" },
@@ -35,13 +39,74 @@ export default function EquipmentTable({ darkMode }: EquipmentTableProps) {
 ];
   
 // 🔥 CONNECTED SOURCE: BorrowRequestsTable approved data
-  const approvedRequestsFiltered = useMemo(() => {
-  return borrowRequests.filter(req => req.status === "Approved");
-}, [borrowRequests]);
+ const approvedEquipmentFiltered = useMemo(() => {
 
-const sortedRequests = useMemo(() => {
-  return [...approvedRequestsFiltered].sort((a, b) => {
-    const getDate = (req: BorrowRequest): Date => {
+  const approved = equipment.filter(
+    req => req.status === "Approved"
+  );
+
+  if (dateFilter === "all") return approved;
+
+  const now = new Date();
+
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  return approved.filter((req) => {
+
+    const requestDate = req.date
+      ? new Date(req.date)
+      : (req.createdAt?.toDate?.() || new Date(0));
+
+    const requestDay = new Date(
+      requestDate.getFullYear(),
+      requestDate.getMonth(),
+      requestDate.getDate()
+    );
+
+    switch (dateFilter) {
+
+      case "daily":
+        return requestDay.getTime() === today.getTime();
+
+      case "weekly": {
+        const weekStart = new Date(today);
+
+        weekStart.setDate(
+          today.getDate() - today.getDay()
+        );
+
+        const weekEnd = new Date(weekStart);
+
+        weekEnd.setDate(
+          weekStart.getDate() + 6
+        );
+
+        return (
+          requestDay >= weekStart &&
+          requestDay <= weekEnd
+        );
+      }
+
+      case "monthly":
+        return (
+          requestDate.getMonth() === now.getMonth() &&
+          requestDate.getFullYear() === now.getFullYear()
+        );
+
+      default:
+        return true;
+    }
+  });
+
+}, [equipment, dateFilter]);
+
+const sorted = useMemo(() => {
+  return [...approvedEquipmentFiltered].sort((a, b) => {
+    const getDate = (req: Equipment): Date => {
       if (req.createdAt?.toDate) return req.createdAt.toDate();
       if (req.timestamp?.toDate) return req.timestamp.toDate();
       return new Date(0);
@@ -49,16 +114,16 @@ const sortedRequests = useMemo(() => {
 
     return getDate(b).getTime() - getDate(a).getTime();
   });
-}, [approvedRequestsFiltered]);
+}, [approvedEquipmentFiltered]);
 
-const totalPages = Math.ceil(sortedRequests.length / ITEMS_PER_PAGE);
+const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
 
 const paginatedRequests = useMemo(() => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  return sortedRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-}, [sortedRequests, currentPage]);
+  return sorted.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+}, [sorted, currentPage]);
 
-  const handleEdit = (req: BorrowRequest) => {
+  const handleEdit = (req: Equipment) => {
   setEditingId(req.id || null);
   setEditData(req);
 };
@@ -102,7 +167,7 @@ const saveEdit = async (id: string) => {
   }
 };
 
-const handleDelete = async (req: BorrowRequest) => {
+const handleDelete = async (req: Equipment) => {
   if (!req.id) return;
 
   const confirmDelete = confirm("Delete this request?");
@@ -123,13 +188,50 @@ const handleDelete = async (req: BorrowRequest) => {
   return (
     <div className={`p-4 rounded-lg mt-6 ${darkMode ? "bg-gray-700 text-white" : "bg-gray-50 text-gray-900"}`}>
       
-      <h2 className="text-xl font-bold mb-4">
-        Equipment Return Monitoring
-      </h2>
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+
+  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+
+    <h2 className="text-xl font-bold">
+      Equipment Return Monitoring
+    </h2>
+
+    <div className="flex flex-wrap gap-2">
+
+      {(['all', 'daily', 'weekly', 'monthly'] as const).map((filter) => (
+
+        <button
+          key={filter}
+          onClick={() => setDateFilter(filter)}
+          className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+            dateFilter === filter
+              ? 'bg-blue-600 text-white'
+              : darkMode
+              ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+
+          {filter === 'all' && 'All'}
+          {filter === 'daily' && 'Today'}
+          {filter === 'weekly' && 'This Week'}
+          {filter === 'monthly' && 'This Month'}
+
+          ({approvedEquipmentFiltered.length})
+
+        </button>
+
+      ))}
+
+    </div>
+
+  </div>
+
+</div>
 
       {paginatedRequests.length === 0 ? (
         <p className="text-center text-gray-500 py-10">
-          No approved requests from Borrow Requests.
+          No approved equipment from Borrow Requests.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -137,10 +239,11 @@ const handleDelete = async (req: BorrowRequest) => {
             
             <thead className={darkMode ? "bg-gray-600" : "bg-gray-100"}>
               <tr>
-                <th className="border px-3 py-2 text-left">Request No</th>
+                <th className="border px-3 py-2 text-left">Request No. & Date</th>
                 <th className="border px-3 py-2 text-left">Requestor</th>
                 <th className="border px-3 py-2 text-left">Purpose</th>
                 <th className="border px-3 py-2 text-left">Items</th>
+                <th className="border px-3 py-2 text-left">Location</th>
                 <th className="border px-3 py-2 text-left">Status</th>
                 {isAdmin && (
                   <th className="border px-3 py-2 text-left">Action</th>
@@ -160,8 +263,15 @@ const handleDelete = async (req: BorrowRequest) => {
                   `}
                 >
 
-                  <td className="border px-3 py-2 font-medium">
+                 <td className="border px-3 py-2 font-medium">
                     {req.requestNo}
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {req.date ? new Date(req.date).toLocaleString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      }) : '—'}
+                    </div>
                   </td>
 
                   <td className="border px-3 py-2">
@@ -200,6 +310,19 @@ const handleDelete = async (req: BorrowRequest) => {
                       />
                     ) : (
                       req.items?.map(i => i.particulars).join(", ")
+                    )}
+                  </td>
+
+                  <td className="border px-3 py-2">
+                    {editingId === req.id ? (
+                      <input
+                        name="location"
+                        value={editData?.items?.map(i => i.location).join(", ") || ""}
+                        onChange={handleChange}
+                        className="border px-2 py-1 w-full"
+                      />
+                    ) : (
+                      req.items?.map(i => i.location).join(", ")
                     )}
                   </td>
 
@@ -261,18 +384,11 @@ const handleDelete = async (req: BorrowRequest) => {
                             {/* RETURN / NOT RETURN */}
                             {!req.dateReturned ? (
                               <button
-                                onClick={async () => {
+                               onClick={async () => {
                                   if (!req.id) return;
                                   setLoadingId(req.id);
-
-                                  try {
-                                    await updateDoc(doc(firebaseFirestore, "borrowRequests", req.id), {
-                                      dateReturned: new Date().toISOString(),
-                                      returnedAt: Timestamp.now(),
-                                    });
-                                  } finally {
-                                    setLoadingId(null);
-                                  }
+                                  await onMarkReturned(req.id, req.requestNo, req.requestor);
+                                  setLoadingId(null);
                                 }}
                                 className="px-2 sm:px-3 py-1 rounded-md text-xs transition-all duration-150 ease-in-out transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md bg-green-500 text-white hover:bg-green-600 cursor-pointer"
                               >
@@ -280,18 +396,11 @@ const handleDelete = async (req: BorrowRequest) => {
                               </button>
                             ) : (
                               <button
-                                onClick={async () => {
+                               onClick={async () => {
                                   if (!req.id) return;
                                   setLoadingId(req.id);
-
-                                  try {
-                                    await updateDoc(doc(firebaseFirestore, "borrowRequests", req.id), {
-                                      dateReturned: null,
-                                      returnedAt: null,
-                                    });
-                                  } finally {
-                                    setLoadingId(null);
-                                  }
+                                  await onMarkNotReturned(req.id, req.requestNo, req.requestor);
+                                  setLoadingId(null);
                                 }}
                                 className="px-2 sm:px-3 py-1 rounded-md text-xs transition-all duration-150 ease-in-out transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer"
                               >

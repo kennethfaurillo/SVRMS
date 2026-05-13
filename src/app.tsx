@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Route, Switch } from 'wouter-preact';
 import notifReqSound from "./assets/notif-request.mp3";
@@ -26,6 +26,7 @@ import useTheme from './hooks/useTheme';
 import useTrips from './hooks/useTrips';
 import { type Notification, type Request, type Trip } from './types';
 import EquipmentTable from './components/EquipmentTable';
+import useBorrowRequests from './hooks/useBorrowRequest';
 
 export function App() {
   // Firebase 
@@ -39,6 +40,7 @@ export function App() {
   const [darkMode, setDarkMode] = useTheme();
   const { addRequest } = useRequests(handleRequestsChange);
   const { trips } = useTrips(handleTripChange);
+  useBorrowRequests(handleBorrowRequestsChange);
  const { user, userProfile, isAdmin, role, signOutUser } = useAuth();
 
   // Determine if user has reports admin access (e.g., based on admin status or specific role)
@@ -159,6 +161,19 @@ const handleLogout = async () => {
     }
   };
 
+  function handleBorrowRequestsChange(
+  type: "added" | "modified" | "removed",
+  request: any
+) {
+  if (type === "added") {
+    addNotification(
+      "added",
+      `New equipment request from ${request.requestor}`,
+      "request"
+    );
+  }
+}
+
   // ===== TRIP HANDLERS =====
 
   // Function to initiate trip editing
@@ -273,6 +288,45 @@ const handleLogout = async () => {
       setUpdatingTripId(null);
     }
   };
+
+  // ===== EQUIPMENT STATUS HANDLERS =====
+const handleMarkEquipmentAsReturned = async (id: string, requestNo: string, requestor: string) => {
+  if (!isAdmin || !db) return;
+
+  try {
+    await updateDoc(doc(db, 'borrowRequests', id), {
+      dateReturned: new Date().toISOString(),
+      returnedAt: Timestamp.now(),
+    });
+    
+    // ✅ NOTIFICATION + SOUND
+    addNotification('updated', `Equipment Request ${requestNo} (${requestor}) marked as RETURNED`, 'request');
+    setMessage(`✅ Equipment Request ${requestNo} marked as Returned!`);
+
+  } catch (error) {
+    console.error('Error updating status:', error);
+    setMessage('❌ Failed to mark as Returned');
+  }
+};
+
+const handleMarkEquipmentAsNotReturned = async (id: string, requestNo: string, requestor: string) => {
+  if (!isAdmin || !db) return;
+
+  try {
+    await updateDoc(doc(db, 'borrowRequests', id), {
+      dateReturned: null,
+      returnedAt: null,
+    });
+
+    // ✅ NOTIFICATION + SOUND
+    addNotification('updated', `Equipment Request ${requestNo} (${requestor}) marked as NOT RETURNED`, 'request');
+    setMessage(`✅ Equipment Request ${requestNo} marked as Not Returned!`);
+
+  } catch (error) {
+    console.error('Error updating status:', error);
+    setMessage('❌ Failed to mark as Not Returned');
+  }
+};
   // Function to run for every change in requests 
   function handleTripChange(type: 'added' | 'modified' | 'removed', trip: Trip) {
     switch (type) {
@@ -599,7 +653,9 @@ const handleLogout = async () => {
   </Route>
 
   <Route path="/equipment">
-  <EquipmentTable darkMode={darkMode} />
+  <EquipmentTable darkMode={darkMode} 
+  onMarkReturned={handleMarkEquipmentAsReturned}
+    onMarkNotReturned={handleMarkEquipmentAsNotReturned}/>
 </Route>
 
   <Route path="/borrow-checklist">

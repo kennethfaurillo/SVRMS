@@ -9,6 +9,20 @@ export default function GatePass({ request, onClose }: GatePassProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<any>(request);
 
+const formatDateLong = (dateStr: string) => {
+  if (!dateStr) return "—";
+
+  const date = new Date(dateStr);
+
+  if (isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
   const handlePrint = () => {
     window.print();
   };
@@ -83,22 +97,18 @@ export default function GatePass({ request, onClose }: GatePassProps) {
 
       <br/>
 
-      <div style="margin-top:40px; display:table; width:100%; table-layout:fixed; font-size:12px; text-align:center;">
+       <div style="margin-top:auto; display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:12px;">
+              <div>
+                <div style="font-weight:bold; font-size:13px; margin-bottom:4px; min-height:18px;">${form.guardName || ""}</div>
+                <div style="border-top:2px solid #000; height:20px;"></div>
+                Guard on Duty/Date&Time
+              </div>
 
- 
-  <div style="display:table-cell; width:33%; padding:0 10px;">
-    <div style="height:40px;"></div>
-    <div style="border-top:2px solid #000; margin-bottom:5px;"></div>
-    Guard on Duty<br/>
-    <span style="font-size:10px;">Date/Time: _____________</span>
-  </div>
-
- 
-  <div style="display:table-cell; width:33%; padding:0 10px;">
-    <div style="height:40px;"></div>
-    <div style="border-top:2px solid #000; margin-bottom:5px;"></div>
-    Borrower Name & Signature
-  </div>
+              <div>
+                <div style="font-weight:bold; font-size:13px; margin-bottom:4px; min-height:18px;">${form.borrowerName || ""}</div>
+                <div style="border-top:2px solid #000; height:20px;"></div>
+                Borrower Name & Signature
+              </div>
 
   
   <div style="display:table-cell; width:33%; padding:0 10px;">
@@ -195,7 +205,7 @@ export default function GatePass({ request, onClose }: GatePassProps) {
             <div style="margin-top:auto; display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:12px;">
               <div>
                 <div style="border-top:2px solid #000; height:40px;"></div>
-                Guard on Duty
+                Guard on Duty/Date&Time
               </div>
 
               <div>
@@ -235,29 +245,44 @@ export default function GatePass({ request, onClose }: GatePassProps) {
      <div
   className="fixed inset-0 flex items-center justify-center z-50 p-4"
   style={{ background: "rgba(0,0,0,0.6)" }}
->
-        <div id="gatepass" ref={printRef} className="bg-white w-full max-w-4xl shadow-2xl p-8 font-serif text-sm">
+    >
+              {/* ==================== PRINT STYLES ==================== */}
+      <style>
+        {`
+          @media print {
+            body * { visibility: hidden; }
+            #gatepass, #gatepass * { visibility: visible; }
+            #gatepass { 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100%; 
+              padding: 12mm 10mm !important; 
+              margin: 0 !important; 
+              box-shadow: none;
+            }
+            img { max-width: 100% !important; height: auto !important; }
+            table { 
+              border-collapse: collapse !important; 
+              width: 100% !important; 
+            }
+            th, td { 
+              border: 2px solid black !important; 
+              padding: 8px 6px !important; 
+            }
+          }
+        `}
+      </style>
+      
+        <div id="gatepass" ref={printRef} className="bg-white w-full max-w-4xl shadow-2xl p-8 font-sans text-sm">
 
-          {/* Header */}
-          <div className="flex justify-between items-start border-b pb-4 mb-6">
-            <div className="flex items-center gap-4">
-              <img 
-                src="/PIWAD-LOGO.png" 
-                alt="PIWAD Logo" 
-                className="w-16 h-16" 
-                onError={(e) => e.currentTarget.style.display = 'none'}
-              />
-              <div>
-                <h1 className="font-bold text-xl">PILI WATER DISTRICT</h1>
-                <p className="text-xs">Sta. Rita Agro Industrial Park,<br />San Jose, Pili, Camarines Sur</p>
-              </div>
-            </div>
-
-            <div className="text-right text-xs">
-              <p>Form No. AGSD-PGSD 001</p>
-              <p>August 2017</p>
-              <p>Rev. 00</p>
-            </div>
+         {/* ==================== OFFICIAL HEADER ==================== */}
+          <div className="mb-8 border-b border-black pb-4">
+            <img 
+              src="/images/piwad-header.png" 
+              alt="Pili Water District Header" 
+              className="w-full h-auto"
+            />
           </div>
 
           <h2 className="text-center font-bold text-2xl mb-8">GATE PASS</h2>
@@ -267,7 +292,7 @@ export default function GatePass({ request, onClose }: GatePassProps) {
               <div>
                 <span className="font-medium">Date:</span> 
                 <span className="ml-2 border-b border-dotted border-gray-400 px-8">
-                  {new Date().toLocaleDateString('en-CA')}
+                  {formatDateLong(new Date().toISOString())}
                 </span>
               </div>
             </div>
@@ -283,35 +308,42 @@ export default function GatePass({ request, onClose }: GatePassProps) {
             </p>
           </div>
 
-          {/* Table */}
-          <table className="w-full border border-black text-sm mb-8">
+                  {/* Table */}
+          <table className="w-full border-collapse border-2 border-black text-sm mb-8">
             <thead>
-              <tr className="border-b border-black">
-                <th className="border border-black p-2 text-left w-24">QTY/UNIT</th>
-                <th className="border border-black p-2 text-left">ITEM/DESCRIPTION</th>
-                <th className="border border-black p-2 text-left w-32">DATE RETURNED</th>
-                <th className="border border-black p-2 text-left">REMARKS</th>
+              <tr className="bg-gray-100">
+                <th className="border-2 border-black p-3 text-left w-20">QTY</th>
+                <th className="border-2 border-black p-3 text-left w-24">UNIT</th>
+                <th className="border-2 border-black p-3 text-left">ITEM/DESCRIPTION</th>
+                <th className="border-2 border-black p-3 text-left w-40">LOCATION</th>
+                <th className="border-2 border-black p-3 text-left w-40">DATE RETURNED</th>
+                <th className="border-2 border-black p-3 text-left">REMARKS</th>
               </tr>
             </thead>
             <tbody>
               {request.items && request.items.length > 0 ? (
                 request.items.map((item: any, index: number) => (
-                  <tr key={index} className="border-b border-black">
-                    <td className="border border-black p-2 align-top">{item.quantity || '—'}</td>
-                    <td className="border border-black p-2 align-top">{item.particulars || '—'}</td>
-                    <td className="border border-black p-2 align-top">
+                  <tr key={index}>
+                    <td className="border-2 border-black p-3 align-top text-center">{item.quantity || '—'}</td>
+                    <td className="border-2 border-black p-3 align-top text-center">{item.unit || '—'}</td>
+                    <td className="border-2 border-black p-3 align-top">{item.particulars || '—'}</td>
+                    <td className="border-2 border-black p-3 align-top">{item.location || '—'}</td>
+                    <td className="border-2 border-black p-3 align-top">
                       <input
-                        value={form.returnDate || ""}
-                        onInput={(e: any) => handleChange("returnDate", e.target.value)}
-                        className="border px-1"
+                        type="text"
+                        value={form.returnDate ? formatDateLong(form.returnDate) : ""}
+                        onFocus={(e: any) => { e.target.type = "date"; }}
+                        onBlur={(e: any) => { e.target.type = "text"; }}
+                        onInput={(e: any) => handleChange("returnDate", e.currentTarget.value)}
+                        className="border px-1 w-full text-center"
                       />
                     </td>
-                    <td className="border border-black p-2 align-top text-xs">{item.remarks || '—'}</td>
+                    <td className="border-2 border-black p-3 align-top text-xs">{item.remarks || '—'}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="border border-black p-8 text-center text-gray-400">
+                  <td colSpan={6} className="border-2 border-black p-8 text-center text-gray-400">
                     No items
                   </td>
                 </tr>
@@ -330,25 +362,54 @@ export default function GatePass({ request, onClose }: GatePassProps) {
                         </span>
           </div>
 
-          {/* Signatures */}
-        <div className="grid grid-cols-3 gap-8 mt-8 text-center text-xs mt-auto">
-            <div>
-              <div className="border-b border-black pb-1 mb-1 h-8"></div>
-              <p>Guard on Duty</p>
-              <p className="text-[10px] text-gray-500">Date/Time: ________________</p>
-            </div>
+  {/* Signatures */}
+<div className="flex justify-between mt-16 text-xs">
 
-            <div>
-              <div className="border-b border-black pb-1 mb-1 h-8"></div>
-              <p>Borrower Name & Signature</p>
-            </div>
+   {/* Guard on Duty - MAY INPUT */}
+  <div className="w-[30%] flex flex-col text-center">
+    <input
+      type="text"
+      value={form.guardName || ""}
+      onInput={(e: any) => handleChange("guardName", e.target.value)}
+      className="font-bold text-center border-none outline-none bg-transparent text-base"
+      placeholder="________________________"
+    />
+    <div className="w-full border-b-2 border-black mb-2"></div>
+    <p className="font-medium">Guard on Duty/Date&Time</p>
+  </div>
 
-            <div>
-              <div className="border-b border-black pb-1 mb-1 h-8"></div>
-              <p>Issued By:</p>
-              <p className="font-medium">SHIELA V. BERSOLA</p>
-              <p className="text-[10px]">Admin./General Services Chief</p>
-            </div>
+  {/* Borrower Name & Signature - MAY INPUT */}
+  <div className="w-[30%] flex flex-col text-center">
+    <input
+      type="text"
+      value={form.borrowerName || ""}
+      onInput={(e: any) => handleChange("borrowerName", e.target.value)}
+      className="font-bold text-center border-none outline-none bg-transparent text-base"
+      placeholder="________________________"
+    />
+    <div className="w-full border-b-2 border-black mb-2"></div>
+    <p className="font-medium">Borrower Name & Signature</p>
+  </div>
+
+  {/* Issued By */}
+  <div className="w-[30%] flex flex-col text-center">
+    <p className="font-medium relative -top-9">Issued By:</p>
+
+    <div className="w-full border-b-2 border-black mb-2"></div>
+
+    <p className="font-medium">SHIELA V. BERSOLA</p>
+    <p className="text-[10px]">Admin./General Services Chief</p>
+  </div>
+
+</div>
+
+          {/* ==================== OFFICIAL FOOTER ==================== */}
+          <div className="mt-12 pt-6">
+            <img 
+              src="/images/A4 portrait footer.png" 
+              alt="Pili Water District Footer" 
+              className="w-full h-auto"
+            />
           </div>
 
           {/* Footer Buttons */}

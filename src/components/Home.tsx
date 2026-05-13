@@ -340,7 +340,7 @@ export default function Home({ darkMode }: HomeProps) {
 
     {/* Dropdown */}
     {showMaintenance && (
-      <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+      <div className="absolute top-0 right-full mr-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
         <Link href="/maintenance/automotive">
           <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 cursor-pointer">
             <CarIcon className="w-6 h-6 text-teal-600"/>
@@ -494,7 +494,7 @@ export default function Home({ darkMode }: HomeProps) {
 
     {/* DROPDOWN */}
     {showReports && (
-      <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+      <div className="absolute top-0 right-full mr-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
 
         <Link href="/fuel-reports">
           <div onClick={() => setShowReports(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
@@ -543,7 +543,7 @@ export default function Home({ darkMode }: HomeProps) {
 
   {/* DROPDOWN */}
   {showEquipment && (
-    <div className="absolute top-0 left-full ml-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
+    <div className="absolute top-0 right-full mr-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col space-y-1 z-50">
 
       <Link href="/borrow-form">
         <div onClick={() => setShowEquipment(false)} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">

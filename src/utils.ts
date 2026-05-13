@@ -89,53 +89,103 @@ export const exportBorrowRequestsToCsv = (requests: BorrowRequest[]) => {
     return;
   }
 
-  const headers = [
-    "Request No",
-    "Date",
-    "Requestor",
-    "Purpose",
-    "Intended Period of Use",
-    "Status",
-    "Items",
+  const csvRows: string[] = [];
+
+  // FIRST HEADER ROW
+  csvRows.push([
+    "Date Borrowed",
+    "Borrower's Name",
+    "Request No.",
+    "Item Requested",
+    "",
+    "",
+    "Location",
     "Date Returned",
     "Received By",
     "Remarks"
-  ];
+  ].join(","));
 
-  const csvRows: string[] = [];
-  csvRows.push(headers.join(','));
+  // SECOND HEADER ROW
+  csvRows.push([
+    "",
+    "",
+    "",
+    "Quantity",
+    "Unit",
+    "Particulars",
+    "",
+    "",
+    "",
+    ""
+  ].join(","));
 
   requests.forEach((req) => {
-    const itemsString = req.items
-      .map((item) =>
-        `${item.particulars} (Qty: ${item.quantity})${item.remarks ? ` - ${item.remarks}` : ''}`
-      )
-      .join(" | ");
 
-    const row = [
-      `"${req.requestNo || ''}"`,
-      `"${req.date || ''}"`,
-      `"${req.requestor || ''}"`,
-      `"${req.purpose || ''}"`,
-      `"${req.period || ''}"`,
-      `"${req.status || 'Pending'}"`,
-      `"${itemsString}"`,
-      `"${req.dateReturned || ''}"`,
-      `"${req.receivedBy || ''}"`,
-      `"${req.remarks || ''}"`
-    ];
+    // kapag walang items
+    if (!req.items || req.items.length === 0) {
 
-    csvRows.push(row.join(','));
+      const row = [
+        `"${req.date || ''}"`,
+        `"${req.requestor || ''}"`,
+        `"${req.requestNo || ''}"`,
+
+        `""`,
+        `""`,
+        `""`,
+
+        `""`,
+
+        `"${req.dateReturned || ''}"`,
+        `"${req.receivedBy || ''}"`,
+        `"${req.remarks || ''}"`
+      ];
+
+      csvRows.push(row.join(","));
+      return;
+    }
+
+    // one row per item
+    req.items.forEach((item, index) => {
+
+      const row = [
+
+        // show only first row details
+        `"${index === 0 ? req.date || '' : ''}"`,
+        `"${index === 0 ? req.requestor || '' : ''}"`,
+        `"${index === 0 ? req.requestNo || '' : ''}"`,
+
+        `"${item.quantity || ''}"`,
+        `"${item.unit || ''}"`,
+        `"${item.particulars || ''}"`,
+
+        `"${item.location || ''}"`,
+
+        `"${index === 0 ? req.dateReturned || '' : ''}"`,
+        `"${index === 0 ? req.receivedBy || '' : ''}"`,
+        `"${item.remarks || req.remarks || ''}"`
+      ];
+
+      csvRows.push(row.join(","));
+    });
   });
 
   const csvString = csvRows.join('\n');
-  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+  const blob = new Blob(
+    [csvString],
+    { type: 'text/csv;charset=utf-8;' }
+  );
+
   const link = document.createElement('a');
 
   link.href = URL.createObjectURL(blob);
-  link.download = `equipment_borrow_requests_${getCurrentDate()}.csv`;
+
+  link.download =
+    `equipment_borrow_requests_${getCurrentDate()}.csv`;
 
   document.body.appendChild(link);
+
   link.click();
+
   document.body.removeChild(link);
 };

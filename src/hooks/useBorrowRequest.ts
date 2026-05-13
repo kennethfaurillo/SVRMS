@@ -3,13 +3,25 @@ import { useEffect, useState } from "preact/hooks";
 import { firebaseFirestore } from "../firebase";
 import type { BorrowRequest } from "../types";
 
-export default function useBorrowRequests() {
+export default function useBorrowRequests( onChange?: (type: "added" | "modified" | "removed", request: BorrowRequest) => void ) {
   const [borrowRequests, setBorrowRequests] = useState<BorrowRequest[]>([]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(firebaseFirestore, "borrowRequests"),
       (snapshot) => {
+
+        snapshot.docChanges().forEach((change) => {
+          const data = change.doc.data();
+
+          const request = {
+            id: change.doc.id,
+            requestor: data.requestor ?? "",
+            status: data.status ?? "Pending",
+          } as BorrowRequest;
+
+          onChange?.(change.type, request);
+        });
         const requests: BorrowRequest[] = snapshot.docs.map((doc) => {
           const data = doc.data();
 

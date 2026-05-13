@@ -16,25 +16,28 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
         fetchData();
     }, [id]);
 
+
     if (!data) return <p className="p-6 text-center">Loading form...</p>;
 
     // Helper: Convert date to "April 17" format (no year)
-    const formatShortDate = (dateStr: string): string => {
-        if (!dateStr) return "";
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr;
+  const formatDateLong = (dateStr: string): string => {
+    if (!dateStr) return "—";
 
-        return date.toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric'
-        });
-    };
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "—";
+
+    return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+    });
+};
 
     // Smart Period Display (same as table)
     const getIntendedPeriod = (): string => {
         if (data.startDate && data.returnDate) {
-            const startFormatted = formatShortDate(data.startDate);
-            const endFormatted = formatShortDate(data.returnDate);
+            const startFormatted = formatDateLong(data.startDate);
+            const endFormatted = formatDateLong(data.returnDate);
             if (startFormatted && endFormatted) {
                 return `${startFormatted} - ${endFormatted}`;
             }
@@ -50,38 +53,51 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
 
     return (
         <div className="p-8 text-sm max-w-4xl mx-auto bg-white" id="printable-form">
+                                        {/* ==================== PRINT STYLES ==================== */}
+            <style>
+                {`
+                    @media print {
+                        body * { visibility: hidden; }
+                        #printable-form, #printable-form * { visibility: visible; }
+                        #printable-form {
+                            position: absolute;
+                            left: 0; top: 0;
+                            width: 100%;
+                            padding: 12mm 10mm !important;
+                            margin: 0 !important;
+                        }
+                        table { 
+                            border-collapse: collapse !important; 
+                            width: 100% !important;
+                        }
+                        th, td {
+                            border: 2px solid black !important;
+                            padding: 8px 6px !important;
+                        }
+                        img {
+                            max-width: 100% !important;
+                            height: auto !important;
+                        }
+                    }
+                `}
+            </style>
 
-            {/* ==================== HEADER WITH LOGO ==================== */}
-            <div className="flex items-start justify-between border-b border-black pb-6 mb-8">
-                
-                {/* Left Side - Logo + Agency Name */}
-                <div className="flex items-center gap-4">
-                    <img 
-                        src="PIWAD-LOGO.png" 
-                        alt="PILI WATER DISTRICT Logo" 
-                        className="w-24 h-24 object-contain"
-                    />
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-wider text-black">
-                            PILI WATER DISTRICT
-                        </h1>
-                        <p className="text-sm text-black mt-1">
-                            Sta. Rita Agro Industrial Park<br />
-                            San Jose, Pili, Camarines Sur
-                        </p>
-                    </div>
-                </div>
-
-                {/* Right Side - Form Info */}
-                <div className="text-right text-xs leading-tight">
-                    <p className="italic">Form No. AGSD-PGSD 002</p>
-                    <p className="italic">August 2017</p>
-                    <p className="italic">Rev. 00</p>
-                </div>
+                       {/* ==================== OFFICIAL HEADER IMAGE ==================== */}
+            <div className="mb-8 border-b border-black pb-4">
+                <img 
+                    src="/images/piwad-header.png" 
+                    alt="Pili Water District Official Header" 
+                    className="w-full h-auto mx-auto block"
+                    onError={(e) => {
+                        console.error("❌ Header image not found");
+                        e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => console.log("✅ Header image loaded successfully!")}
+                />
             </div>
 
-            {/* ==================== TITLE ==================== */}
-            <h1 className="text-center font-bold text-xl mb-8 tracking-wider">
+                       {/* ==================== TITLE ==================== */}
+            <h1 className="text-center font-bold text-xl mb-8 tracking-wider border-b border-black pb-2">
                 EQUIPMENT / MATERIAL BORROWERS FORM
             </h1>
 
@@ -97,7 +113,7 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 <div>
                     <label className="block font-medium text-xs mb-1">Date:</label>
                     <div className="border border-gray-700 p-2 bg-gray-50 min-h-[38px]">
-                        {data.date || '—'}
+                       {formatDateLong(data.date)}
                     </div>
                 </div>
 
@@ -124,29 +140,33 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 </div>
             </div>
 
-            {/* ==================== ITEMS TABLE ==================== */}
+                                 {/* ==================== ITEMS TABLE ==================== */}
             <h2 className="font-bold mb-3 text-base">
                 Checklist of Requested Items (To be filled by Guard on Duty)
             </h2>
 
-            <table className="w-full border border-black text-sm mb-8">
+            <table className="w-full border-collapse border-2 border-black text-sm mb-8">
                 <thead>
                     <tr className="bg-gray-100">
-                        <th className="border border-black p-3 text-left font-semibold">Particulars</th>
-                        <th className="border border-black p-3 text-center font-semibold w-28">Quantity</th>
-                        <th className="border border-black p-3 text-left font-semibold">Remarks</th>
+                        <th className="border-2 border-black p-3 text-left font-semibold">Particulars</th>
+                        <th className="border-2 border-black p-3 text-center font-semibold w-28">Quantity</th>
+                        <th className="border-2 border-black p-3 text-center font-semibold w-28">Unit</th>
+                        <th className="border-2 border-black p-3 text-left font-semibold">Location</th>
+                        <th className="border-2 border-black p-3 text-left font-semibold">Remarks</th>
                     </tr>
                 </thead>
                 <tbody>
                     {data.items?.map((item: any, index: number) => (
                         <tr key={index}>
-                            <td className="border border-black p-3 align-top">{item.particulars || '—'}</td>
-                            <td className="border border-black p-3 text-center align-top">{item.quantity || '—'}</td>
-                            <td className="border border-black p-3 align-top">{item.remarks || '—'}</td>
+                            <td className="border-2 border-black p-3 align-top">{item.particulars || '—'}</td>
+                            <td className="border-2 border-black p-3 text-center align-top">{item.quantity || '—'}</td>
+                            <td className="border-2 border-black p-3 text-center align-top">{item.unit || '—'}</td>
+                            <td className="border-2 border-black p-3 align-top">{item.location || '—'}</td>
+                            <td className="border-2 border-black p-3 align-top">{item.remarks || '—'}</td>
                         </tr>
                     )) || (
                         <tr>
-                            <td colSpan={3} className="border border-black p-8 text-center text-gray-500">
+                            <td colSpan={5} className="border-2 border-black p-8 text-center text-gray-500">
                                 No items found
                             </td>
                         </tr>
@@ -191,6 +211,15 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                         <div className="border border-gray-700 p-3 min-h-[42px]"></div>
                     </div>
                 </div>
+            </div>
+
+                               {/* ==================== OFFICIAL FOOTER ==================== */}
+            <div className="mt-10 pt-4">
+                <img 
+                    src="/images/A4 portrait footer.png" 
+                    alt="Pili Water District Footer" 
+                    className="w-full h-auto"
+                />
             </div>
 
         </div>
