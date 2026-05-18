@@ -5,6 +5,7 @@ import useBorrowRequests from "../hooks/useBorrowRequest";
 import type { Equipment} from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import useEquipment from "../hooks/useEquipment";
+import { useConstants } from "../hooks/useConstants";
 
 interface EquipmentTableProps {
   darkMode: boolean;
@@ -14,6 +15,7 @@ interface EquipmentTableProps {
 
 export default function EquipmentTable({ darkMode, onMarkReturned, onMarkNotReturned }: EquipmentTableProps) {
   const { equipment } = useEquipment();
+  const { equipmentItems } = useConstants();
   const { isAdmin } = useAuth();
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -300,18 +302,37 @@ const handleDelete = async (req: Equipment) => {
                     )}
                   </td>
 
-                <td className="border px-3 py-2">
-                    {editingId === req.id ? (
-                      <input
-                        name="items"
-                        value={editData?.items?.map(i => i.particulars).join(", ") || ""}
-                        onChange={handleChange}
-                        className="border px-2 py-1 w-full"
-                      />
-                    ) : (
-                      req.items?.map(i => i.particulars).join(", ")
-                    )}
-                  </td>
+               <td className="border px-3 py-2">
+                  {editingId === req.id ? (
+                    <select
+                      value={editData?.items?.[0]?.particulars || ""}
+                      onChange={(e) => {
+                        const selectedItem = e.currentTarget.value;
+
+                        setEditData((prev: any) => ({
+                          ...prev,
+                          items: [
+                            {
+                              ...prev.items?.[0],
+                              particulars: selectedItem,
+                            },
+                          ],
+                        }));
+                      }}
+                      className="border px-2 py-1 w-full"
+                    >
+                      <option value="">-- Select Item --</option>
+
+                      {equipmentItems.map((item: string) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    req.items?.map(i => i.particulars).join(", ")
+                  )}
+                </td>
 
                   <td className="border px-3 py-2">
                     {editingId === req.id ? (

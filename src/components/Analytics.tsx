@@ -279,7 +279,27 @@ const driverChart = useMemo(() => {
         {[
           { title: "Maintenance Reports", value: maintenanceReports.length },
           { title: "Defective Vehicles", value: maintenanceReports.filter(r => getVehicleStatus(r) === "Defective").length },
-          { title: "Needs Refuel", value: maintenanceReports.filter(r => r.driverSection && r.driverSection.balanceInTank !== undefined && Number(r.driverSection.balanceInTank) < 0.5).length },
+         {
+          title: "Needs Refuel",
+          value: maintenanceReports.filter((r) => {
+            const balance = Number(
+              r.driverSection?.balanceInTank
+            );
+
+            if (isNaN(balance)) return false;
+
+            const plate = (r.plateNumber || "").toUpperCase();
+
+            const isMotorcycle =
+              plate.includes("TRYC") ||
+              plate.includes("MC") ||
+              plate.includes("MOTOR");
+
+            const fullTank = isMotorcycle ? 10 : 20;
+
+            return balance <= fullTank * 0.2;
+          }).length,
+        },
         ].map((card) => (
           <div
             key={card.title}

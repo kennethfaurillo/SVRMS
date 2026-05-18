@@ -1,4 +1,3 @@
-// src/pages/MaintenanceReports.tsx
 import { useEffect, useState, useMemo } from "preact/hooks";
 import {
   collection,
@@ -39,7 +38,14 @@ interface MaintenanceReport {
   driverSection?: DriverSection;
 }
 
-export default function MaintenanceReports() {
+interface MaintenanceReportsProps {
+  darkMode: boolean;
+}
+
+
+export default function MaintenanceReports({
+  darkMode,
+}: MaintenanceReportsProps) {
   const [reports, setReports] = useState<MaintenanceReport[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] =
@@ -144,13 +150,25 @@ export default function MaintenanceReports() {
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen space-y-6">
-      <h1 className="text-3xl font-bold">Vehicle Maintenance Dashboard</h1>
+    <div
+  className={`p-6 min-h-screen space-y-6 transition-colors
+  ${darkMode
+    ? "bg-gray-900 text-white"
+    : "bg-gray-100 text-black"}
+`}
+>
+      <h1 className={`text-3xl font-bold
+${darkMode ? "text-white" : "text-black"}
+`}>Vehicle Maintenance Dashboard</h1>
 
       <input
         type="text"
         placeholder="Search vehicle plate..."
-        className="w-full p-3 rounded border"
+        className={`w-full p-3 rounded border
+${darkMode
+  ? "bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+  : "bg-white border-gray-300 text-black"}
+`}
         value={search}
         onInput={(e) =>
           setSearch((e.target as HTMLInputElement).value)
@@ -159,13 +177,16 @@ export default function MaintenanceReports() {
 
       <div className="flex flex-col md:flex-row gap-6 mt-6">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-4">Automotive</h2>
+          <h2 className={`text-2xl font-bold mb-4
+${darkMode ? "text-white" : "text-black"}
+`}>Automotive</h2>
           <div className="flex flex-wrap gap-4">
             {automotiveVehicles.length ? (
               automotiveVehicles.map((v) => (
                 <VehicleCard
                   key={v.plate}
                   vehicle={v}
+                  darkMode={darkMode}
                   onClick={() => setSelectedVehicle(v.plate)}
                   getVehicleStatus={getVehicleStatus}
                   getFuelStatus={getFuelStatus}
@@ -178,7 +199,9 @@ export default function MaintenanceReports() {
         </div>
 
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-4">
+          <h2 className={`text-2xl font-bold mb-4
+${darkMode ? "text-white" : "text-black"}
+`}>
             Motorcycle / Trimobile
           </h2>
           <div className="flex flex-wrap gap-4">
@@ -187,6 +210,7 @@ export default function MaintenanceReports() {
                 <VehicleCard
                   key={v.plate}
                   vehicle={v}
+                  darkMode={darkMode}
                   onClick={() => setSelectedVehicle(v.plate)}
                   getVehicleStatus={getVehicleStatus}
                   getFuelStatus={getFuelStatus}
@@ -202,6 +226,7 @@ export default function MaintenanceReports() {
       {selectedVehicle && (
         <VehicleReportsModal
           vehicle={selectedVehicle}
+          darkMode={darkMode}
           reports={reports
             .filter((r) => r.plateNumber === selectedVehicle)
             .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))}
@@ -230,6 +255,7 @@ function VehicleCard({
   onClick,
   getVehicleStatus,
   getFuelStatus,
+  darkMode,s
 }: any) {
   const fuelData = vehicle.lastReport
     ? getFuelStatus(vehicle.lastReport).split("|")
@@ -241,9 +267,13 @@ function VehicleCard({
 
   return (
     <div
-      className="w-60 bg-white shadow-lg rounded-xl p-3 cursor-pointer hover:shadow-xl"
-      onClick={onClick}
-    >
+  className={`w-60 shadow-lg rounded-xl p-3 cursor-pointer hover:shadow-xl transition-colors
+  ${darkMode
+    ? "bg-gray-800 text-white"
+    : "bg-white text-black"}
+`}
+  onClick={onClick}
+>
       {vehicle.image ? (
         <img
           src={vehicle.image}
@@ -255,10 +285,18 @@ function VehicleCard({
         </div>
       )}
 
-      <h3 className="font-bold text-lg">{vehicle.plate}</h3>
-      <p className="text-sm text-gray-600">{vehicle.description}</p>
+      <h3 className={`font-bold text-lg
+${darkMode ? "text-white" : "text-black"}
+`}>{vehicle.plate}</h3>
+      <p className={`text-sm
+${darkMode ? "text-gray-400" : "text-gray-600"}
+`}>{vehicle.description}</p>
 
-      <p className="mt-2">
+      <p
+  className={`mt-2
+  ${darkMode ? "text-white" : "text-black"}
+`}
+>
         Status:{" "}
         <span
           className={
@@ -274,7 +312,7 @@ function VehicleCard({
         </span>
       </p>
 
-      <p>
+      <p className={darkMode ? "text-white" : "text-black"}>
         Fuel:{" "}
         <span className="text-blue-600">
           {balance != null ? `${balance}L` : "No Data"}
@@ -299,6 +337,7 @@ function VehicleReportsModal({
   onViewChecklist,
   getVehicleStatus,
   getFuelStatus,
+  darkMode,
 }: any) {
   return (
     <div
@@ -306,13 +345,25 @@ function VehicleReportsModal({
       onClick={onClose}
     >
       <div
-        className="bg-white p-6 rounded w-11/12 md:w-3/4 max-h-[80vh] overflow-y-auto"
+        className={`p-6 rounded w-11/12 md:w-3/4 max-h-[80vh] overflow-y-auto
+${darkMode
+  ? "bg-gray-900 text-white"
+  : "bg-white text-black"}
+`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-2xl font-bold mb-4">{vehicle} - Reports</h2>
+        <h2 className={`text-2xl font-bold mb-4
+${darkMode ? "text-white" : "text-black"}
+`}>{vehicle} - Reports</h2>
 
         <table className="w-full text-sm border">
-          <thead className="bg-gray-100">
+         <thead
+  className={
+    darkMode
+      ? "bg-gray-800 text-white"
+      : "bg-gray-100 text-black"
+  }
+>
             <tr>
               <th>Date</th>
               <th>Status</th>
@@ -327,19 +378,37 @@ function VehicleReportsModal({
 
               return (
                 <tr key={r.id}>
-                  <td className="border p-2">
+                  <td className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
                     {r.timestamp
                       ? new Date(r.timestamp).toLocaleDateString()
                       : "-"}
                   </td>
 
-                  <td className="border p-2">
+                  <td className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
                     {getVehicleStatus(r)}
                   </td>
 
-                  <td className="border p-2">{fuel[1]}</td>
+                  <td className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
+                    {fuel[1]}
+                  </td>
 
-                  <td className="border p-2">
+                  <td className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
                     <button
                       className="text-blue-600 underline"
                       onClick={() => onViewChecklist(r)}

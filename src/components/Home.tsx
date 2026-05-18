@@ -147,6 +147,36 @@ export default function Home({ darkMode }: HomeProps) {
 );
     return v.status === "Available" && !defectiveReport;
   });
+
+   const totalEquipment = availability.length;
+
+    const equipmentStatus = availability.reduce(
+      (acc, v) => {
+        const normalize = (str: string) =>
+          str.replace(/\s|\./g, "").toLowerCase();
+
+        const defectiveReport = maintenanceReports.find(
+          r =>
+            normalize(r.plateNumber) === normalize(v.plateNumber) &&
+            r.checklist?.some(item => item.status === "Defective")
+        );
+
+        if (defectiveReport) {
+          acc.defective++;
+        } else if (v.status.startsWith("Assigned")) {
+          acc.borrowed++;
+        } else {
+          acc.available++;
+        }
+
+        return acc;
+      },
+      {
+        available: 0,
+        borrowed: 0,
+        defective: 0,
+      }
+    );
    
    
     return (
@@ -271,19 +301,16 @@ export default function Home({ darkMode }: HomeProps) {
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
 
     {/* Equipment Status */}
-    <div className="bg-white p-4 rounded-lg shadow-sm relative opacity-60 cursor-not-allowed">
+   <div className="bg-white p-4 rounded-lg shadow-sm relative">
   <h4 className="text-slate-800 font-semibold flex items-center gap-2 text-sm">
     <ClipboardIcon className="w-5 h-5 text-teal-600"/> Equipment Status
-    <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-      Coming Soon
-    </span>
   </h4>
-  <ul className="text-slate-400 text-xs mt-2 space-y-1 ml-6">
-    <li>Total Equipment: –</li>
-    <li>Available: –</li>
-    <li>Borrowed: –</li>
-    <li>Defective: –</li>
-  </ul>
+ <ul className="text-slate-700 text-sm mt-2 space-y-1 ml-6 font-medium">
+  <li>Total Equipment: <span className="font-semibold">{totalEquipment}</span></li>
+  <li>Available: <span className="text-green-600 font-semibold">{equipmentStatus.available}</span></li>
+  <li>Borrowed: <span className="text-yellow-600 font-semibold">{equipmentStatus.borrowed}</span></li>
+  <li>Defective: <span className="text-red-600 font-semibold">{equipmentStatus.defective}</span></li>
+</ul>
 </div>
   </div>
 

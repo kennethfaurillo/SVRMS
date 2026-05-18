@@ -262,7 +262,7 @@ export default function BorrowersForm() {
 
         {/* Add New Item Form - with OK button at the bottom */}
         <div className="mb-10">
-          <h2 className="font-bold text-lg mb-4">Add Item</h2>
+          <h2 className="font-bold text-lg mb-4">List of Equipment</h2>
 
           <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-50 dark:border-gray-300">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">

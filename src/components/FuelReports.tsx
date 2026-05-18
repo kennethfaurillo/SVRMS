@@ -1,5 +1,4 @@
-// src/pages/FuelReports.tsx
-import { Link } from "wouter-preact";
+ import { Link } from "wouter-preact";
 import { useState, useEffect } from "preact/hooks";
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { firebaseFirestore } from "../firebase";
@@ -78,7 +77,11 @@ function exportToCSV(data: Trip[]) {
   a.click();
 }
 
-export default function FuelReports() {
+interface FuelReportsProps {
+  darkMode: boolean;
+}
+
+export default function FuelReports({ darkMode }: FuelReportsProps) {
   const { trips, maintenanceReports, loading, error } = useTrips();   // ← from hook
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -215,7 +218,10 @@ export default function FuelReports() {
   };
 
   return (
-    <div className="max-w-full mx-auto p-4">
+    <div
+  className={`max-w-full mx-auto p-4 min-h-screen transition-colors
+  ${darkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}
+>
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">Fuel Reports</h1>
         <div className="flex gap-2">
@@ -234,7 +240,11 @@ export default function FuelReports() {
       {/* FILTERS */}
       <div className="flex gap-2 mb-4 items-center flex-wrap">
         <select
-          className="border p-2 rounded"
+         className={`border p-2 rounded
+          ${darkMode
+            ? "bg-gray-800 border-gray-700 text-white"
+            : "bg-white border-gray-300 text-black"
+          }`}
           value={dateFilter}
           onChange={(e) => { setDateFilter(e.currentTarget.value); setPage(1); }}
         >
@@ -247,7 +257,11 @@ export default function FuelReports() {
         <input
           type="text"
           placeholder="Search by trip no, plate, driver, or purpose..."
-          className="flex-1 min-w-[250px] p-2 border rounded"
+          className={`flex-1 min-w-[250px] p-2 border rounded
+            ${darkMode
+              ? "bg-gray-800 border-gray-700 text-white"
+              : "bg-white border-gray-300 text-black"
+            }`}
           value={searchTerm}
           onInput={(e) => { setSearchTerm(e.currentTarget.value); setPage(1); }}
         />
@@ -256,7 +270,7 @@ export default function FuelReports() {
       {/* SUMMARY */}
       <div className="mb-4 bg-gray-100 p-4 rounded flex justify-between items-center">
         <div>
-          <p className="text-sm text-gray-600">Total Fuel Expenses</p>
+         <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Total Fuel Expenses</p>
           <p className="text-2xl font-bold">₱{totalAmount.toFixed(2)}</p>
         </div>
         <div className="text-right">
@@ -265,11 +279,24 @@ export default function FuelReports() {
       </div>
 
       {/* TABLE */}
-      <table className="w-full border text-sm">
+     <table
+        className={`w-full border text-sm
+        ${darkMode
+          ? "border-gray-700 text-white"
+          : "border-gray-300 text-black"}
+      `}
+      >
         <thead>
-          <tr className="bg-gray-50">
+          <tr className={darkMode ? "bg-gray-800" : "bg-gray-50"}>
             {categories.map((c) => (
-              <th key={c} className="border p-2 text-left font-medium">
+             <th
+              key={c}
+              className={`border p-2 text-left font-medium
+              ${darkMode
+                ? "border-gray-700 text-white"
+                : "border-gray-300 text-black"}
+            `}
+            >
                 {formatHeader(c)}
               </th>
             ))}
@@ -282,14 +309,18 @@ export default function FuelReports() {
             <tr><td colSpan={categories.length} className="text-center py-8">No fuel reports found.</td></tr>
           ) : (
             paginatedTrips.map((trip) => (
-              <tr key={trip.id} className="hover:bg-gray-50">
+              <tr key={trip.id} className={darkMode ? "hover:bg-gray-600" : "hover:bg-gray-50"}>
                 {categories.map((field) => {
                   const value = (trip as any)[field];
 
                   if (field === "fuelPrice") {
                     const isEditing = editingRow === trip.id;
                     return (
-                      <td key={field} className="border p-2">
+                      <td key={field}className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
                         {isEditing ? (
                           <input
                             autoFocus
@@ -328,18 +359,30 @@ export default function FuelReports() {
                   }
 
                   if (field === "fuelQuantity" || field === "totalAmount") {
-                    return <td key={field} className="border p-2 font-medium">{value == null ? "-" : Number(value).toFixed(2)}</td>;
+                    return <td key={field} className={`border p-2 font-medium
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>{value == null ? "-" : Number(value).toFixed(2)}</td>;
                   }
 
                   if (field === "passengers") {
                     return (
-                      <td key={field} className="border p-2">
+                      <td key={field} className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>
                         {Array.isArray(trip.passengers) && trip.passengers.length > 0 ? trip.passengers.join(", ") : "-"}
                       </td>
                     );
                   }
 
-                  return <td key={field} className="border p-2">{value ?? "-"}</td>;
+                  return <td key={field} className={`border p-2
+${darkMode
+  ? "border-gray-700 text-white"
+  : "border-gray-300 text-black"}
+`}>{value ?? "-"}</td>;
                 })}
               </tr>
             ))

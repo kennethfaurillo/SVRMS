@@ -363,42 +363,36 @@ const formatDateLong = (dateStr: string) => {
           </div>
 
   {/* Signatures */}
-<div className="flex justify-between mt-16 text-xs">
+<div className="flex justify-between items-end mt-16 text-xs">
 
-   {/* Guard on Duty - MAY INPUT */}
+  {/* Guard on Duty */}
   <div className="w-[30%] flex flex-col text-center">
-    <input
-      type="text"
-      value={form.guardName || ""}
-      onInput={(e: any) => handleChange("guardName", e.target.value)}
-      className="font-bold text-center border-none outline-none bg-transparent text-base"
-      placeholder="________________________"
-    />
+    <div className="mb-6"></div>
+
     <div className="w-full border-b-2 border-black mb-2"></div>
+
     <p className="font-medium">Guard on Duty/Date&Time</p>
   </div>
 
-  {/* Borrower Name & Signature - MAY INPUT */}
+  {/* Borrower */}
   <div className="w-[30%] flex flex-col text-center">
-    <input
-      type="text"
-      value={form.borrowerName || ""}
-      onInput={(e: any) => handleChange("borrowerName", e.target.value)}
-      className="font-bold text-center border-none outline-none bg-transparent text-base"
-      placeholder="________________________"
-    />
+    <div className="mb-6"></div>
+
     <div className="w-full border-b-2 border-black mb-2"></div>
-    <p className="font-medium">Borrower Name & Signature</p>
+
+    <p className="font-medium">Borrower's Name & Signature</p>
   </div>
 
   {/* Issued By */}
   <div className="w-[30%] flex flex-col text-center">
     <p className="font-medium relative -top-9">Issued By:</p>
+    <p className="font-bold text-base mb-1">SHIELA V. BERSOLA</p>
 
     <div className="w-full border-b-2 border-black mb-2"></div>
 
-    <p className="font-medium">SHIELA V. BERSOLA</p>
-    <p className="text-[10px]">Admin./General Services Chief</p>
+    <p className="text-[10px] font-medium">
+      Admin./General Services Chief B
+    </p>
   </div>
 
 </div>

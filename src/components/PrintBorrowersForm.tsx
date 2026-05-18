@@ -4,12 +4,16 @@ import { firebaseFirestore } from "../firebase";
 
 export default function PrintBorrowersForm({ id }: { id: string }) {
     const [data, setData] = useState<any>(null);
+    const [formData, setFormData] = useState<any>(null);
 
     useEffect(() => {
         const fetchData = async () => {
             const snap = await getDoc(doc(firebaseFirestore, "borrowRequests", id));
-            if (snap.exists()) {
-                setData(snap.data());
+           if (snap.exists()) {
+                const fetchedData = snap.data();
+
+                setData(fetchedData);
+                setFormData(fetchedData);
             }
         };
 
@@ -17,7 +21,7 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
     }, [id]);
 
 
-    if (!data) return <p className="p-6 text-center">Loading form...</p>;
+    if (!formData) return <p className="p-6 text-center">Loading form...</p>;
 
     // Helper: Convert date to "April 17" format (no year)
   const formatDateLong = (dateStr: string): string => {
@@ -106,14 +110,24 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 <div>
                     <label className="block font-medium text-xs mb-1">Request No:</label>
                     <div className="border border-gray-700 p-2 bg-gray-50 min-h-[38px]">
-                        {data.requestNo || '—'}
+                       <input
+                            type="text"
+                            value={formData.requestNo || ""}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    requestNo: e.currentTarget.value
+                                })
+                            }
+                            className="w-full bg-transparent outline-none"
+                        />
                     </div>
                 </div>
 
                 <div>
                     <label className="block font-medium text-xs mb-1">Date:</label>
                     <div className="border border-gray-700 p-2 bg-gray-50 min-h-[38px]">
-                       {formatDateLong(data.date)}
+                       {formatDateLong(formData.date)}
                     </div>
                 </div>
 
@@ -127,7 +141,17 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 <div className="col-span-2">
                     <label className="block font-medium text-xs mb-1">Purpose:</label>
                     <div className="border border-gray-700 p-2 bg-gray-50 min-h-[38px]">
-                        {data.purpose || '—'}
+                      <input
+                            type="text"
+                            value={formData.purpose || ""}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    purpose: e.currentTarget.value
+                                })
+                            }
+                            className="w-full bg-transparent outline-none"
+                        />
                     </div>
                 </div>
             </div>
@@ -136,7 +160,17 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
             <div className="mb-8">
                 <label className="block font-medium text-xs mb-1">Intended Period of Use:</label>
                 <div className="border border-gray-700 p-3 bg-gray-50 min-h-[42px] font-medium">
-                    {getIntendedPeriod()}
+                  <input
+                    type="text"
+                    value={getIntendedPeriod()}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            period: e.currentTarget.value
+                        })
+                    }
+                    className="w-full bg-transparent outline-none"
+                />
                 </div>
             </div>
 
@@ -158,11 +192,81 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 <tbody>
                     {data.items?.map((item: any, index: number) => (
                         <tr key={index}>
-                            <td className="border-2 border-black p-3 align-top">{item.particulars || '—'}</td>
-                            <td className="border-2 border-black p-3 text-center align-top">{item.quantity || '—'}</td>
-                            <td className="border-2 border-black p-3 text-center align-top">{item.unit || '—'}</td>
-                            <td className="border-2 border-black p-3 align-top">{item.location || '—'}</td>
-                            <td className="border-2 border-black p-3 align-top">{item.remarks || '—'}</td>
+                            <td className="border-2 border-black p-3 align-top"><input
+                                type="text"
+                                value={item.particulars || ""}
+                                onChange={(e) => {
+                                    const updatedItems = [...formData.items];
+
+                                    updatedItems[index].particulars = e.currentTarget.value;
+
+                                    setFormData({
+                                        ...formData,
+                                        items: updatedItems
+                                    });
+                                }}
+                                className="w-full bg-transparent outline-none"
+                            /></td>
+                            <td className="border-2 border-black p-3 text-center align-top"><input
+                                type="text"
+                                value={item.particulars || ""}
+                                onChange={(e) => {
+                                    const updatedItems = [...formData.items];
+
+                                    updatedItems[index].particulars = e.currentTarget.value;
+
+                                    setFormData({
+                                        ...formData,
+                                        items: updatedItems
+                                    });
+                                }}
+                                className="w-full bg-transparent outline-none"
+                            /></td>
+                            <td className="border-2 border-black p-3 text-center align-top"><input
+                                type="text"
+                                value={item.unit || ""}
+                                onChange={(e) => {
+                                    const updatedItems = [...formData.items];
+
+                                    updatedItems[index].unit = e.currentTarget.value;
+
+                                    setFormData({
+                                        ...formData,
+                                        items: updatedItems
+                                    });
+                                }}
+                                className="w-full bg-transparent outline-none"
+                            /></td>
+                            <td className="border-2 border-black p-3 align-top"><input
+                                type="text"
+                                value={item.location || ""}
+                                onChange={(e) => {
+                                    const updatedItems = [...formData.items];
+
+                                    updatedItems[index].location = e.currentTarget.value;
+
+                                    setFormData({
+                                        ...formData,
+                                        items: updatedItems
+                                    });
+                                }}
+                                className="w-full bg-transparent outline-none"
+                            /></td>
+                            <td className="border-2 border-black p-3 align-top"><input
+                                type="text"
+                                value={item.remarks || ""}
+                                onChange={(e) => {
+                                    const updatedItems = [...formData.items];
+
+                                    updatedItems[index].remarks = e.currentTarget.value;
+
+                                    setFormData({
+                                        ...formData,
+                                        items: updatedItems
+                                    });
+                                }}
+                                className="w-full bg-transparent outline-none"
+                            /></td>
                         </tr>
                     )) || (
                         <tr>

@@ -437,7 +437,7 @@ const formatETA = (isoString?: string): string => {
               <div class="signature-box">
                 <div>${approvedBy}</div>
                 <div class="signature-line"></div>
-                Asst. Chief
+                Admin/Gen. Service Chief B
               </div>
             </div>
           </div>
@@ -484,7 +484,7 @@ const formatETA = (isoString?: string): string => {
               <div class="signature-box">
                 <div>${approvedBy}</div>
                 <div class="signature-line"></div>
-                Asst. Chief
+                Admin/Gen. Service Chief B
               </div>
             </div>
           </div>
@@ -1036,23 +1036,26 @@ const formatETA = (isoString?: string): string => {
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
           
             <div style={{ width: "32%", textAlign: "center" }}>
-              Recommended by:<br />
-              <input
-                type="text"
-                value={tripData.recommendedBy || ""}
-                onChange={(e) => setTripData({ ...tripData, recommendedBy: e.currentTarget.value })}
-                style={{
-                  width: "85%",
-                  marginTop: 35,
-                  border: "none",
-                  borderBottom: "2px solid #000",
-                  textAlign: "center",
-                  background: darkMode ? "#111827" : "#fff",
-                  color: darkMode ? "#fff" : "#000"
-                }}
-              />
-              <div style={{ marginTop: 8 }}>Division Manager / Supervisor</div>
-            </div>
+  <div>Recommended by:</div>
+
+  <div style={{ height: "50px" }}></div>
+
+  <input
+    type="text"
+    value={tripData.recommendedBy || ""}
+    onChange={(e) => setTripData({ ...tripData, recommendedBy: e.currentTarget.value })}
+    style={{
+      width: "85%",
+      border: "none",
+      borderBottom: "2px solid #000",
+      textAlign: "center",
+      background: darkMode ? "#111827" : "#fff",
+      color: darkMode ? "#fff" : "#000"
+    }}
+  />
+
+  <div style={{ marginTop: 8 }}>Division Manager / Supervisor</div>
+</div>
             <div style={{ width: "32%", textAlign: "center" }}>
               Approved by:<br />
               <input
@@ -1069,7 +1072,7 @@ const formatETA = (isoString?: string): string => {
                   color: darkMode ? "#fff" : "#000"
                 }}
               />
-              <div style={{ marginTop: 8 }}>Asst. Chief</div>
+              <div style={{ marginTop: 8 }}>Admin/Gen. Service Chief B</div>
             </div>
           </div>
         </div>
