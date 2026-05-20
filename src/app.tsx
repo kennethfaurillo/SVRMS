@@ -469,7 +469,7 @@ const handleMarkEquipmentAsNotReturned = async (id: string, requestNo: string, r
   return (
     <div className={`min-h-screen font-sans flex flex-col sm:flex-row ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900'}`}>
       <Sidebar />
-      <main class={`flex place-content-center w-full p-2 sm:p-4`}>
+      <main className={`flex place-content-center w-full p-1 sm:p-3`}>
         {/* <div className={`w-full max-w-[95%] sm:max-w-6xl shadow-xl rounded-xl p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}> */}
         <div className={`shadow-xl rounded-xl h-fit self-center p-3 sm:p-6 md:p-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
@@ -633,15 +633,15 @@ const handleMarkEquipmentAsNotReturned = async (id: string, requestNo: string, r
   <Maintenance category="Motorcycle" darkMode={darkMode} />
 </Route>
 <Route path="/fuel-reports">
-  {isReportsAdmin ? <FuelReports /> : <div>Unauthorized</div>}
+  {isReportsAdmin ? <FuelReports darkMode={darkMode} /> : <div>Unauthorized</div>}
 </Route>
 
   <Route path="/maintenance-reports">
-  {isReportsAdmin ? <MaintenanceReports /> : <div>Unauthorized</div>}
+  {isReportsAdmin ? <MaintenanceReports darkMode={darkMode} /> : <div>Unauthorized</div>}
 </Route>
 
  <Route path="/borrow-report">
-  {isReportsAdmin ? <EquipmentBorrowReport /> : <div>Unauthorized</div>}
+  {isReportsAdmin ? <EquipmentBorrowReport darkMode={darkMode} /> : <div>Unauthorized</div>}
 </Route>
 
   <Route path='/borrow-form'>

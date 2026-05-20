@@ -1,7 +1,7 @@
 import { useMemo } from "preact/hooks";
 import useBorrowRequests from "../hooks/useBorrowRequest";
 
-export default function EquipmentBorrowReport() {
+export default function EquipmentBorrowReport({ darkMode }: { darkMode: boolean }) {
   const { borrowRequests } = useBorrowRequests();
 
   // Approved + Returned only
@@ -79,17 +79,34 @@ export default function EquipmentBorrowReport() {
   };
 
   // ================= ITEMS =================
-  const getItems = (req: any) => {
-    const items = req.items || [];
-    if (!items.length) return "—";
+const getItems = (req: any) => {
+  const items = req.items || [];
+  if (!items.length) return "—";
 
-    return items
-      .map((item: any) =>
-        `${item.particulars || item.name || "—"} (${item.quantity ?? item.qty ?? 0})`
-      )
-      .join("\n");
-  };
+  return items
+    .map((item: any) => `${item.particulars || item.name || "—"}`)
+    .join("\n");
+};
 
+// ================= UNIT =================
+const getUnits = (req: any) => {
+  const items = req.items || [];
+  if (!items.length) return "—";
+
+  return items
+    .map((item: any) => `${item.unit || "—"}`)
+    .join("\n");
+};
+
+// ================= QUANTITY =================
+const getQuantities = (req: any) => {
+  const items = req.items || [];
+  if (!items.length) return "—";
+
+  return items
+    .map((item: any) => `${item.quantity ?? item.qty ?? 0}`)
+    .join("\n");
+};
   const getQtyTotal = (req: any) => {
     const items = req.items || [];
     return items.reduce((sum: number, item: any) => {
@@ -122,6 +139,8 @@ export default function EquipmentBorrowReport() {
       "Purpose",
       "Intended Period",
       "Items",
+      "Unit", 
+      "Qty", 
       "Total Qty",
       "Date Returned",
     ];
@@ -136,6 +155,8 @@ export default function EquipmentBorrowReport() {
         req.purpose || "",
         `${formatShortDate(req.startDate)} - ${formatShortDate(req.returnDate)}`,
         getItems(req).replace(/\n/g, " | "),
+        getUnits(req).replace(/\n/g, " | "),
+        getQuantities(req).replace(/\n/g, " | "),
         getQtyTotal(req),
         formatDate(returnedDate),
       ]
@@ -172,20 +193,24 @@ export default function EquipmentBorrowReport() {
 
       {/* TABLE */}
       {filteredRequests.length === 0 ? (
-        <p className="text-gray-500">No borrow requests found.</p>
+        <p className={`${darkMode ? 'text-gray-300' : 'text-gray-500'} p-6 text-center`}>
+  No borrow requests found.
+</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border text-sm">
-            <thead className="bg-gray-100">
+          <table className={`w-full text-sm ${darkMode ? 'border-gray-700' : 'border-gray-200'} border`}>
+ <thead className={`${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-gray-100 text-gray-700'}`}>
               <tr>
-                <th className="p-2 border">Request No & Date</th>
-                <th className="p-2 border">Requestor</th>
-                <th className="p-2 border">Purpose</th>
-                <th className="p-2 border">Intended Period</th>
-                <th className="p-2 border">Items</th>
-                <th className="p-2 border">Total Qty</th>
-                <th className="p-2 border">Status</th>
-                <th className="p-2 border">Date Returned</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Request No & Date</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Requestor</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Purpose</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Intended Period</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Items</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Unit</th> {/* ← BAGONG KOLUM */}
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Qty</th> {/* ← Pinalitan ko na lang pangalan para maikli */}
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Total Qty</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Status</th>
+                <th className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>Date Returned</th>
               </tr>
             </thead>
 
@@ -195,32 +220,34 @@ export default function EquipmentBorrowReport() {
                 const returnedDate = getReturnedDate(req);
 
                 return (
-                  <tr key={req.id} className="hover:bg-gray-50">
-                    <td className="p-2 border">
+                 <tr key={req.id} className="transition-colors">
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>
                       <div className="font-medium">{req.requestNo || "—"}</div>
                       <div className="text-xs text-gray-500">
                         {formatDate(req.createdAt || req.date)}
                       </div>
                     </td>
-                    <td className="p-2 border">{req.requestor || "—"}</td>
-                    <td className="p-2 border">{req.purpose || "—"}</td>
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>{req.requestor || "—"}</td>
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>{req.purpose || "—"}</td>
 
-                    <td className="p-2 border">
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>
                       {formatShortDate(req.startDate)} - {formatShortDate(req.returnDate)}
                     </td>
 
-                    <td className="p-2 border whitespace-pre-line">{getItems(req)}</td>
-                    <td className="p-2 border text-center">{getQtyTotal(req)}</td>
+                   <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border whitespace-pre-line`}>{getItems(req)}</td>
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border whitespace-pre-line text-center`}>{getUnits(req)}</td> {/* ← BAGO */}
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border whitespace-pre-line text-center`}>{getQuantities(req)}</td> {/* ← BAGO */}
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border text-center`}>{getQtyTotal(req)}</td>
 
-                    <td className="p-2 border font-semibold">
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border font-semibold`}>
                       {status === "returned" ? (
-                        <span className="text-blue-600">Returned</span>
+                        <span className="text-blue-400">Returned</span>
                       ) : (
-                        <span className="text-green-600">Approved</span>
+                        <span className="text-green-400">Approved</span>
                       )}
                     </td>
 
-                    <td className="p-2 border">
+                    <td className={`p-2 ${darkMode ? 'border-gray-600' : 'border-gray-200'} border`}>
                       {formatDate(returnedDate)}
                     </td>
                   </tr>

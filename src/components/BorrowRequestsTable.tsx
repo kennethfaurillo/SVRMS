@@ -354,7 +354,7 @@ const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(nul
                                 >
                                         <td className="px-4 py-4 border">
                                             <div className="font-medium">{request.requestNo || '—'}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{formatShortDate(request.date)}</div>
+                                           <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>{formatShortDate(request.date)}</div>
                                         </td>
                                         <td className="px-4 py-4 border font-medium">
                                             {editingRequestId===request.id ? (

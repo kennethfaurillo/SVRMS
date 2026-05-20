@@ -106,7 +106,7 @@ export default function Sidebar() {
       });
 
       if (!hasAccess) {
-        return null; // Huwag ipakita ang item
+        return null; 
       }
     }
 
