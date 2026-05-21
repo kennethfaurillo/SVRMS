@@ -284,19 +284,30 @@ export default function PrintBorrowersForm({ id }: { id: string }) {
                 <p>2. In case of damage or loss, I shall be responsible for its repair or loss.</p>
             </div>
 
-            {/* ==================== SIGNATURES ==================== */}
-            <div className="grid grid-cols-3 gap-8 text-xs text-center mt-12">
-                <div>
-                    <div className="border-b border-black w-full mb-1 h-8"></div>
-                    <p className="font-medium">Borrower's Name &amp; Signature</p>
+            {/* ==================== SIGNATURE SECTION ==================== */}
+            <div className="flex justify-between items-end mt-16 text-xs">
+                {/* ITEMS CHECKED BY */}
+                <div className="w-[23%] flex flex-col text-center">
+                    <p className="font-medium relative -top-9">Items Checked By:</p>
+                    <div className="w-full border-b-2 border-black mb-2"></div>
+                    <p className="font-medium">Guard on Duty/Date&Time</p>
                 </div>
-                <div>
-                    <div className="border-b border-black w-full mb-1 h-8"></div>
-                    <p className="font-medium">Items Checked By</p>
+
+                {/* BORROWER'S NAME & SIGNATURE */}
+                <div className="w-[23%] flex flex-col text-center">
+                    <div className="mb-6"></div>
+                    <div className="w-full border-b-2 border-black mb-2"></div>
+                    <p className="font-medium">Borrower's Name & Signature</p>
                 </div>
-                <div>
-                    <div className="border-b border-black w-full mb-1 h-8"></div>
-                    <p className="font-medium">Recommending Approval</p>
+
+                {/* APPROVED BY */}
+                <div className="w-[23%] flex flex-col text-center">
+                    <p className="font-medium relative -top-9">Approved By:</p>
+                    <p className="font-bold text-base mb-1">SHIELA V. BERSOLA</p>
+                    <div className="w-full border-b-2 border-black mb-2"></div>
+                    <p className="text-[10px] font-medium">
+                        Admin./General Services Chief B
+                    </p>
                 </div>
             </div>
 
